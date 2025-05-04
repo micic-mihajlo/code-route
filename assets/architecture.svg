@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+  <style>
+    .box { fill: #f0f8ff; stroke: #4682b4; stroke-width: 2; }
+    .title { font-family: Arial; font-size: 16px; font-weight: bold; fill: #333; }
+    .label { font-family: Arial; font-size: 14px; fill: #333; }
+    .arrow { stroke: #4682b4; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    .dashed { stroke-dasharray: 5,5; }
+    .highlight { fill: #e6f3ff; }
+  </style>
+  
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4682b4" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="#333">Code Route Architecture</text>
+  
+  <!-- Core Components -->
+  <rect x="300" y="80" width="200" height="80" rx="10" class="box highlight" />
+  <text x="400" y="110" text-anchor="middle" class="title">Assistant Core</text>
+  <text x="400" y="130" text-anchor="middle" class="label">cr.py</text>
+  <text x="400" y="150" text-anchor="middle" class="label">OpenRouter Integration</text>
+  
+  <!-- Configuration -->
+  <rect x="550" y="80" width="150" height="60" rx="10" class="box" />
+  <text x="625" y="110" text-anchor="middle" class="title">Configuration</text>
+  <text x="625" y="130" text-anchor="middle" class="label">config.py</text>
+  
+  <!-- System Prompts -->
+  <rect x="100" y="80" width="150" height="60" rx="10" class="box" />
+  <text x="175" y="110" text-anchor="middle" class="title">System Prompts</text>
+  <text x="175" y="130" text-anchor="middle" class="label">system_prompts.py</text>
+  
+  <!-- Interfaces -->
+  <rect x="200" y="200" width="150" height="60" rx="10" class="box" />
+  <text x="275" y="230" text-anchor="middle" class="title">CLI Interface</text>
+  <text x="275" y="250" text-anchor="middle" class="label">cr.py main()</text>
+  
+  <rect x="450" y="200" width="150" height="60" rx="10" class="box" />
+  <text x="525" y="230" text-anchor="middle" class="title">Web Interface</text>
+  <text x="525" y="250" text-anchor="middle" class="label">app.py (Streamlit)</text>
+  
+  <!-- Tool System -->
+  <rect x="300" y="320" width="200" height="80" rx="10" class="box highlight" />
+  <text x="400" y="350" text-anchor="middle" class="title">Tool System</text>
+  <text x="400" y="370" text-anchor="middle" class="label">tools/base.py</text>
+  <text x="400" y="390" text-anchor="middle" class="label">Dynamic Tool Loading</text>
+  
+  <!-- Tool Categories -->
+  <rect x="100" y="420" width="120" height="50" rx="10" class="box" />
+  <text x="160" y="445" text-anchor="middle" class="label">Core Tools</text>
+  
+  <rect x="240" y="420" width="120" height="50" rx="10" class="box" />
+  <text x="300" y="445" text-anchor="middle" class="label">Dev Tools</text>
+  
+  <rect x="380" y="420" width="120" height="50" rx="10" class="box" />
+  <text x="440" y="445" text-anchor="middle" class="label">File Tools</text>
+  
+  <rect x="520" y="420" width="120" height="50" rx="10" class="box" />
+  <text x="580" y="445" text-anchor="middle" class="label">Web Tools</text>
+  
+  <!-- External Services -->
+  <rect x="550" y="320" width="150" height="60" rx="10" class="box" />
+  <text x="625" y="340" text-anchor="middle" class="title">External Services</text>
+  <text x="625" y="360" text-anchor="middle" class="label">OpenRouter API</text>
+  <text x="625" y="380" text-anchor="middle" class="label">E2B Sandbox</text>
+  
+  <!-- Connections -->
+  <path d="M 250 110 L 300 110" class="arrow" />
+  <path d="M 500 110 L 550 110" class="arrow" />
+  
+  <path d="M 400 160 L 400 180 L 275 180 L 275 200" class="arrow" />
+  <path d="M 400 160 L 400 180 L 525 180 L 525 200" class="arrow" />
+  
+  <path d="M 275 260 L 275 280 L 400 280 L 400 320" class="arrow" />
+  <path d="M 525 260 L 525 280 L 400 280 L 400 320" class="arrow" />
+  
+  <path d="M 400 400 L 400 410 L 160 410 L 160 420" class="arrow" />
+  <path d="M 400 400 L 400 410 L 300 410 L 300 420" class="arrow" />
+  <path d="M 400 400 L 400 410 L 440 410 L 440 420" class="arrow" />
+  <path d="M 400 400 L 400 410 L 580 410 L 580 420" class="arrow" />
+  
+  <path d="M 500 350 L 550 350" class="arrow" />
+  
+  <path d="M 625 320 L 625 280 L 400 280" class="arrow dashed" />
+</svg>
