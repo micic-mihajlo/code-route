@@ -55,7 +55,7 @@ uv venv
 uv run app.py
 
 # Or run CLI
-uv run ce3.py
+uv run cr.py
 ```
 
 
