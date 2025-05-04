@@ -1,260 +1,276 @@
-# Code Route 🤖
+# 🛤️ Code Route: Self-Improving AI Assistant Framework
 
-A powerful self-improving AI Assistant designed for creating and managing AI tools with advanced language models. This framework enables AI models to generate and manage their own tools, continuously expanding capabilities through conversation. Available both as a CLI and a modern web interface!
+<div align="center">
+  <img src="assets/architecture.svg" alt="Code Route Architecture" width="800"/>
+</div>
 
-## History and Evolution
-This project represents a rebranding and evolution of the previous framework. Key improvements include:
-- Support for multiple AI models through OpenRouter integration
-- Self-improving tool creation system
-- Streamlined conversation handling
-- More precise token usage tracking and visualization
-- Autonomous tool generation capabilities
-- No need for automode since AI models can intelligently decide when to run tools automatically and sequentially.
+## 🌟 What is Code Route?
 
-## Description
-Code Route is a sophisticated framework that allows AI models to expand their own capabilities through dynamic tool creation. During conversations, the AI can identify needs for new tools, design them, and implement them automatically. This self-improving architecture means the framework becomes more powerful the more you use it.
+Code Route is a revolutionary self-improving AI assistant framework that dynamically creates and manages AI tools during conversations. Unlike traditional AI assistants with fixed capabilities, Code Route can identify the need for new tools, design them, and implement them on the fly - becoming more powerful the more you use it.
 
+### 🚀 Key Innovations
 
-## Installation
+- **Self-expanding capabilities**: Autonomously creates new tools when needed
+- **Multi-model support**: Leverages various AI models through OpenRouter API
+- **Dual interfaces**: Powerful CLI and modern web UI options
+- **Tool orchestration**: Intelligently chains tools for complex tasks
+- **Precise token management**: Optimizes context usage for longer conversations
 
-For the best possible experience install uv
+<div align="center">
+  <img src="assets/workflow.svg" alt="Code Route Workflow" width="800"/>
+</div>
 
-### macOS and Linux
+## 🧩 System Architecture
+
+Code Route is built around a modular architecture that enables its self-improving capabilities:
+
+### Core Components
+
+1. **Assistant Engine** (`cr.py`): The central component that:
+   - Manages conversations and token usage
+   - Dynamically loads and executes tools
+   - Interfaces with language models via OpenRouter
+   - Handles tool execution and result processing
+
+2. **Tool System** (`tools/base.py`): The extensible foundation for all tools:
+   - Defines the `BaseTool` abstract class that all tools implement
+   - Provides standardized interfaces for tool execution
+   - Enables dynamic discovery and loading of new tools
+   - Supports tool creation during runtime
+
+3. **System Prompts** (`prompts/system_prompts.py`): Defines the assistant's behavior:
+   - Establishes identity and communication protocols
+   - Provides tool usage guidelines and policies
+   - Sets coding standards and security policies
+   - Defines error handling and self-validation procedures
+
+4. **Configuration** (`config.py`): Centralizes system settings:
+   - Model selection and parameters
+   - Token limits and conversation constraints
+   - Path configurations and environment settings
+   - Feature toggles and behavior controls
+
+### Interface Options
+
+Code Route offers two powerful interfaces to suit different workflows:
+
+#### 💻 Command Line Interface (CLI)
+
 ```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# Or using wget if curl is not available:
-# wget -qO- https://astral.sh/uv/install.sh | sh
-
-# Clone and setup
-git clone https://github.com/Doriandarko/code-route.git
-cd code-route
-uv venv
-source .venv/bin/activate
-
-# Run web interface
-uv run app.py
-
-# Or run CLI
 uv run cr.py
 ```
 
-### Windows
+The CLI provides a developer-focused experience with:
+- Rich text formatting with syntax highlighting
+- Live progress indicators for long-running operations
+- Detailed token usage visualization
+- Direct tool interaction with verbose output
+- Lightweight resource footprint
+
+#### 🌐 Web Interface (Streamlit)
+
+```bash
+uv run app.py
+```
+
+The web UI delivers a modern, visual experience with:
+- Clean, responsive design for all devices
+- Image upload and analysis capabilities
+- Real-time token usage visualization
+- Markdown rendering with syntax highlighting
+- Tool usage indicators and execution tracking
+
+<div align="center">
+  <img src="assets/tools.svg" alt="Code Route Tool Ecosystem" width="800"/>
+</div>
+
+## 🛠️ Tool Ecosystem
+
+Code Route's power comes from its extensive and expandable tool ecosystem:
+
+### Core Tools
+- **Tool Creator** (`toolcreator.py`): The meta-tool that enables self-improvement by generating new tools based on natural language descriptions.
+
+### Development Tools
+- **UV Package Manager** (`uvpackagemanager.py`): Manages Python dependencies with the ultra-fast UV package manager.
+- **E2B Code Executor** (`e2bcodetool.py`): Runs Python code securely in an isolated sandbox environment.
+- **Linting Tool** (`lintingtool.py`): Analyzes and fixes code style issues using Ruff.
+
+### File System Tools
+- **Create Folders Tool** (`createfolderstool.py`): Creates directory structures with proper permissions.
+- **File Creator** (`filecreatortool.py`): Generates new files with specified content.
+- **File Content Reader** (`filecontentreadertool.py`): Reads and processes file contents.
+- **File Edit** (`fileedittool.py`): Modifies existing files while preserving encoding.
+- **Diff Editor** (`diffeditortool.py`): Makes precise text replacements in files.
+
+### Web Tools
+- **DuckDuckGo** (`duckduckgotool.py`): Performs privacy-focused web searches.
+- **Web Scraper** (`webscrapertool.py`): Extracts content from websites.
+- **Browser** (`browsertool.py`): Opens URLs in the system browser.
+
+### Utility Tools
+- **Screenshot Tool** (`screenshottool.py`): Captures screen content for analysis.
+- **Weather Tool** (`weathertool.py`): Retrieves weather information for locations.
+
+## 🔄 Self-Improvement Workflow
+
+Code Route's unique self-improvement cycle works as follows:
+
+1. **Need Identification**: During a conversation, the assistant identifies a capability gap
+2. **Tool Specification**: The assistant designs a new tool to fill this gap
+3. **Code Generation**: Using the Tool Creator, it generates the Python code for the new tool
+4. **Validation & Testing**: The code is validated and tested for functionality
+5. **Dynamic Loading**: The new tool is automatically loaded into the running system
+6. **Immediate Usage**: The assistant can immediately use the new tool in the conversation
+7. **Persistent Availability**: The tool remains available for future conversations
+
+This cycle allows Code Route to continuously evolve its capabilities based on user interactions, becoming more powerful and tailored to specific needs over time.
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Python 3.8+
+- OpenRouter API Key (get one at [openrouter.ai](https://openrouter.ai/))
+- E2B API Key (optional, for code execution, get one at [e2b.dev](https://e2b.dev/))
+
+### Installation
+
+#### macOS and Linux
+```bash
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and setup
+git clone https://github.com/micic-mihajlo/cr-py.git
+cd cr-py
+uv venv
+source .venv/bin/activate
+
+# Run CLI or web interface
+uv run cr.py  # CLI
+# or
+uv run app.py  # Web UI
+```
+
+#### Windows
 ```powershell
 # Install uv
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 # Clone and setup
-git clone https://github.com/Doriandarko/code-route.git
-cd code-route
+git clone https://github.com/micic-mihajlo/cr-py.git
+cd cr-py
 uv venv
 .venv\Scripts\activate
 
-
-# Run web interface
-uv run app.py
-
-# Or run CLI
-uv run cr.py
+# Run CLI or web interface
+uv run cr.py  # CLI
+# or
+uv run app.py  # Web UI
 ```
 
+### Configuration
 
-## Interface Options
-
-### 1. Web Interface 🌐
-A sleek, modern web UI with features like:
-- Real-time token usage visualization
-- Image upload and analysis capabilities
-- Markdown rendering with syntax highlighting
-- Responsive design for all devices
-- Tool usage indicators
-- Clean, minimal interface
-
-![Code Route Web Interface](ui.png)
-
-To run the web interface:
-```bash
-# Using uv (recommended)
-uv run app.py
-
-# Or using traditional Python
-python app.py
-
-# Then open your browser to:
-http://localhost:5000
-```
-
-### 2. Command Line Interface (CLI) 💻
-A powerful terminal-based interface with:
-- Rich text formatting
-- Progress indicators
-- Token usage visualization
-- Direct tool interaction
-- Detailed debugging output
-
-To run the CLI:
-```bash
-# Using uv (recommended)
-uv run cr.py
-
-# Or using traditional Python
-python cr.py
-```
-
-Choose the interface that best suits your workflow:
-- Web UI: Great for visual work, image analysis, and a more modern experience
-- CLI: Perfect for developers, system integration, and terminal workflows
-
-
-## Self-Improvement Features
-- 🧠 Autonomous tool identification and creation
-- 🔄 Dynamic capability expansion during conversations
-- 🎯 Smart tool dependency management
-- 📈 Learning from tool usage patterns
-- 🔍 Automatic identification of capability gaps
-- 🛠️ Self-optimization of existing tools
-
-## Core Features
-- 🔨 Dynamic tool creation and loading
-- 🔄 Hot-reload capability for new tools
-- 🎨 Rich console interface with progress indicators
-- 🧩 Tool abstraction framework with clean interfaces
-- 📝 Automated tool code generation
-- 🔌 Easy integration with Claude 3.5 AI
-- 💬 Persistent conversation history with token management
-- 🛠️ Real-time tool usage display
-- 🔄 Automatic tool chaining support
-- ⚡ Dynamic module importing system
-- 📊 Advanced token tracking with Anthropic's token counting API
-- 🎯 Precise context window management
-- 🔍 Enhanced error handling and debugging
-- 💾 Conversation state management
-
-## Project Structure
-```
-code-route/
-├── app.py             # Web interface server
-├── ce3.py            # CLI interface
-├── config.py         # Configuration settings
-├── static/           # Web assets
-│   ├── css/         # Stylesheets
-│   └── js/          # JavaScript files
-├── templates/        # HTML templates
-├── tools/           # Tool implementations
-│   ├── base.py      # Base tool class
-│   └── ...         # Generated and custom tools
-└── prompts/         # System prompts
-    └── system_prompts.py
-```
-
-## Features by Interface
-
-### Web Interface Features
-- 🖼️ Image upload and analysis with Claude Vision
-- 📊 Visual token usage progress bar
-- 🎨 Clean, modern design with Tailwind CSS
-- 📝 Markdown rendering with syntax highlighting
-- 🔄 Real-time updates
-- 📱 Responsive design for all devices
-- 🖥️ Tool usage indicators
-- ⌨️ Command/Ctrl + Enter to send messages
-
-### CLI Features
-- 🎨 Rich text formatting
-- 📊 ASCII token usage bar
-- 🔄 Live progress indicators
-- 🛠️ Direct tool interaction
-- 📝 Detailed debugging output
-- 💻 Terminal-optimized interface
-
-Choose the interface that best matches your workflow and preferences. Both interfaces provide access to the same powerful Code Route capabilities, just presented in different ways.
-
-## Key Components
-
-### Assistant Class
-The core Assistant class provides:
-- Dynamic tool loading and management
-- Real-time conversation handling with token tracking
-- Automatic tool creation and validation
-- Tool execution and chaining
-- Rich console output with progress indicators
-- Token usage optimization
-
-### Configuration Options
-The assistant supports various configuration options through the Config class:
-- MODEL: Claude 3.5 Sonnet model specification
-- MAX_TOKENS: Maximum tokens for individual responses
-- MAX_CONVERSATION_TOKENS: Total token limit for conversations
-- TOOLS_DIR: Directory for tool storage
-- SHOW_TOOL_USAGE: Toggle tool usage display
-- ENABLE_THINKING: Toggle thinking indicator
-- DEFAULT_TEMPERATURE: Model temperature setting
-
-## Requirements
-- Python 3.8+
-- Anthropic API Key (Claude 3.5 access)
-- Required packages in `requirements.txt`
-- Rich terminal support
-
-## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-## License
-MIT
-
-## Acknowledgments
-This project builds upon previous frameworks, enhancing capabilities with self-improving tool generation and advanced token management.
-
-## Built-in Tools
-Code Route comes with a comprehensive set of pre-built tools:
-
-### Core Tools
-- 🛠️ **Tool Creator** (`toolcreator`): Creates new tools based on natural language descriptions, enabling the framework's self-improvement capabilities.
-
-### Development Tools
-- 📦 **UV Package Manager** (`uvpackagemanager`): Interface to the UV package manager for Python dependency management, supporting package installation, removal, updates, and virtual environment management.
-- 🐍 **E2B Code Executor** (`e2bcodetool`): Securely executes Python code in a sandboxed environment powered by E2B. This tool enables Claude to write and run Python code directly, making it capable of data analysis, visualization, and complex computations. Requires an E2B API key available at [e2b.dev](https://e2b.dev/).
-- 🔍 **Linting Tool** (`lintingtool`): Runs the Ruff linter on Python files to detect and fix coding style or syntax issues, with support for automatic fixes and customizable rules.
-
-### File System Tools
-- 📂 **Create Folders Tool** (`createfolderstool`): Creates new directories and nested directory structures with proper error handling and path validation.
-- 📝 **File Creator** (`filecreatortool`): Creates new files with specified content, supporting both text and binary files.
-- 📖 **File Content Reader** (`filecontentreadertool`): Reads content from multiple files simultaneously, with smart filtering of binary and system files.
-- ✏️ **File Edit** (`fileedittool`): Advanced file editing with support for full content replacement and partial edits.
-- 🔄 **Diff Editor** (`diffeditortool`): Performs precise text replacements in files by matching exact substrings.
-
-### Web Tools
-- 🔍 **DuckDuckGo** (`duckduckgotool`): Performs web searches using DuckDuckGo.
-- 🌐 **Web Scraper** (`webscrapertool`): Intelligently extracts readable content from web pages while removing unnecessary elements.
-- 🌍 **Browser** (`browsertool`): Opens URLs in the system's default web browser.
-
-### Utility Tools
-- 📸 **Screenshot Tool** (`screenshottool`): Captures screenshots of the entire screen or specific regions, returning base64-encoded images ready for Claude's vision capabilities.
-
-Each tool is designed to be:
-- Self-documenting with detailed descriptions
-- Error-resistant with comprehensive error handling
-- Composable for complex operations
-- Secure with proper input validation
-- Cross-platform compatible where applicable
-
-The tools are dynamically loaded and can be extended during runtime through the Tool Creator, allowing the assistant to continuously expand its capabilities based on user needs.
-
-## API Keys Required
-1. **OpenRouter API Key**: Required for accessing AI models through OpenRouter. Get your key at [openrouter.ai](https://openrouter.ai/)
-2. **E2B API Key**: Required for Python code execution capabilities. Get your key at [e2b.dev](https://e2b.dev/)
-
-Add these to your `.env` file:
+Create a `.env` file in the project root with your API keys:
 
 ```bash
 OPENROUTER_API_KEY=your_openrouter_key
-E2B_API_KEY=your_e2b_key
+E2B_API_KEY=your_e2b_key  # Optional
 ```
 
-Alternatively, you can use Anthropic directly (requires code modification):
+## 💡 Usage Examples
 
-```bash
-ANTHROPIC_API_KEY=your_anthropic_key
-E2B_API_KEY=your_e2b_key
+### Creating a New Tool
+
 ```
+User: I need a tool that can convert CSV files to JSON format.
+
+Code Route: I can create that for you. Let me design a CSV to JSON conversion tool...
+[Tool creation process happens]
+✅ Created new tool: CSVToJSONTool
+
+Now I can convert CSV files to JSON. Let me know which file you'd like to convert.
+```
+
+### Chaining Multiple Tools
+
+```
+User: Find information about climate change, summarize it, and save it to a file.
+
+Code Route: I'll handle that with multiple tools:
+1. Using DuckDuckGo to search for climate change information...
+2. Analyzing and summarizing the search results...
+3. Creating a file with the summary...
+✅ File created: climate_change_summary.md
+```
+
+### Code Analysis and Execution
+
+```
+User: Can you analyze this Python function and optimize it?
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+Code Route: This recursive Fibonacci implementation has exponential time complexity.
+Let me optimize it using dynamic programming:
+
+```python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    fib = [0, 1]
+    for i in range(2, n+1):
+        fib.append(fib[i-1] + fib[i-2])
+    return fib[n]
+```
+
+Would you like me to test the performance difference?
+```
+
+## 🔍 Advanced Features
+
+### Token Management
+
+Code Route implements sophisticated token tracking to maximize the utility of context windows:
+
+- **Real-time monitoring**: Visualizes token usage during conversations
+- **Adaptive responses**: Adjusts verbosity based on available context space
+- **Efficient history management**: Optimizes conversation history retention
+- **Context prioritization**: Ensures critical information remains in context
+
+### Tool Chaining
+
+The system can automatically chain multiple tools together to solve complex problems:
+
+- **Sequential execution**: Passes outputs from one tool as inputs to another
+- **Parallel processing**: Runs independent tools simultaneously when possible
+- **Error handling**: Gracefully manages failures in tool chains
+- **Progress tracking**: Provides visibility into multi-step operations
+
+### Security Features
+
+Code Route implements robust security measures:
+
+- **Sandboxed execution**: Runs code in isolated environments
+- **Input validation**: Sanitizes all inputs to prevent injection attacks
+- **Credential protection**: Securely handles API keys and sensitive data
+- **Permission boundaries**: Restricts tool access to appropriate resources
+
+## 📚 Contributing
+
+Contributions to Code Route are welcome! Here's how you can help:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+For major changes, please open an issue first to discuss what you would like to change.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 

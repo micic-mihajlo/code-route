@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <style>
+    .box { fill: #f0f8ff; stroke: #4682b4; stroke-width: 2; }
+    .title { font-family: Arial; font-size: 16px; font-weight: bold; fill: #333; }
+    .label { font-family: Arial; font-size: 14px; fill: #333; }
+    .arrow { stroke: #4682b4; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    .dashed { stroke-dasharray: 5,5; }
+    .highlight { fill: #e6f3ff; }
+    .step { fill: #f9f9f9; stroke: #666; stroke-width: 1; }
+    .user { fill: #e6ffe6; stroke: #4caf50; stroke-width: 2; }
+    .assistant { fill: #e6f3ff; stroke: #2196f3; stroke-width: 2; }
+    .tool { fill: #fff3e6; stroke: #ff9800; stroke-width: 2; }
+  </style>
+  
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4682b4" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="#333">Code Route Workflow</text>
+  
+  <!-- User Input -->
+  <rect x="100" y="80" width="600" height="60" rx="10" class="user" />
+  <text x="400" y="110" text-anchor="middle" class="title">User Input</text>
+  <text x="400" y="130" text-anchor="middle" class="label">Text or Multimodal (Text + Images)</text>
+  
+  <!-- Assistant Processing -->
+  <rect x="250" y="180" width="300" height="80" rx="10" class="assistant" />
+  <text x="400" y="210" text-anchor="middle" class="title">Assistant Processing</text>
+  <text x="400" y="230" text-anchor="middle" class="label">Analyze Request</text>
+  <text x="400" y="250" text-anchor="middle" class="label">Determine Required Tools</text>
+  
+  <!-- Decision Diamond -->
+  <polygon points="400,300 450,350 400,400 350,350" class="box highlight" />
+  <text x="400" y="355" text-anchor="middle" class="label">Tools Needed?</text>
+  
+  <!-- Direct Response -->
+  <rect x="500" y="330" width="200" height="60" rx="10" class="assistant" />
+  <text x="600" y="360" text-anchor="middle" class="title">Direct Response</text>
+  <text x="600" y="380" text-anchor="middle" class="label">No Tool Execution</text>
+  
+  <!-- Tool Execution -->
+  <rect x="250" y="430" width="300" height="80" rx="10" class="tool" />
+  <text x="400" y="460" text-anchor="middle" class="title">Tool Execution</text>
+  <text x="400" y="480" text-anchor="middle" class="label">Dynamic Tool Loading</text>
+  <text x="400" y="500" text-anchor="middle" class="label">Execute Tool with Parameters</text>
+  
+  <!-- Final Response -->
+  <rect x="100" y="540" width="600" height="60" rx="10" class="assistant" />
+  <text x="400" y="570" text-anchor="middle" class="title">Final Response</text>
+  <text x="400" y="590" text-anchor="middle" class="label">Incorporate Tool Results and Provide Answer</text>
+  
+  <!-- Connections -->
+  <path d="M 400 140 L 400 180" class="arrow" />
+  <path d="M 400 260 L 400 300" class="arrow" />
+  <path d="M 450 350 L 500 350" class="arrow" />
+  <text x="470" y="340" class="label">No</text>
+  
+  <path d="M 400 400 L 400 430" class="arrow" />
+  <text x="410" y="415" class="label">Yes</text>
+  
+  <path d="M 400 510 L 400 540" class="arrow" />
+  <path d="M 600 390 L 600 520 L 400 520" class="arrow dashed" />
+  
+  <!-- Tool Creation Flow (Optional) -->
+  <rect x="100" y="430" width="120" height="80" rx="10" class="tool" style="fill: #ffe6e6; stroke: #f44336;" />
+  <text x="160" y="460" text-anchor="middle" class="title">Tool Creation</text>
+  <text x="160" y="480" text-anchor="middle" class="label">If Needed Tool</text>
+  <text x="160" y="500" text-anchor="middle" class="label">Doesn't Exist</text>
+  
+  <path d="M 350 470 L 220 470" class="arrow dashed" style="stroke: #f44336;" />
+  <path d="M 160 510 L 160 570 L 100 570" class="arrow dashed" style="stroke: #f44336;" />
+</svg>

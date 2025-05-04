@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <style>
+    .box { fill: #f0f8ff; stroke: #4682b4; stroke-width: 2; }
+    .title { font-family: Arial; font-size: 16px; font-weight: bold; fill: #333; }
+    .label { font-family: Arial; font-size: 14px; fill: #333; }
+    .small-label { font-family: Arial; font-size: 12px; fill: #666; }
+    .arrow { stroke: #4682b4; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    .dashed { stroke-dasharray: 5,5; }
+    .highlight { fill: #e6f3ff; }
+    .core { fill: #e6ffe6; stroke: #4caf50; stroke-width: 2; }
+    .dev { fill: #e6f3ff; stroke: #2196f3; stroke-width: 2; }
+    .file { fill: #fff3e6; stroke: #ff9800; stroke-width: 2; }
+    .web { fill: #ffe6e6; stroke: #f44336; stroke-width: 2; }
+    .utility { fill: #f3e6ff; stroke: #9c27b0; stroke-width: 2; }
+  </style>
+  
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4682b4" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="#333">Code Route Tool Ecosystem</text>
+  
+  <!-- Base Tool -->
+  <rect x="325" y="60" width="150" height="60" rx="10" class="box highlight" />
+  <text x="400" y="90" text-anchor="middle" class="title">BaseTool</text>
+  <text x="400" y="110" text-anchor="middle" class="label">tools/base.py</text>
+  
+  <!-- Core Tools -->
+  <rect x="100" y="180" width="150" height="80" rx="10" class="core" />
+  <text x="175" y="200" text-anchor="middle" class="title">Core Tools</text>
+  <text x="175" y="225" text-anchor="middle" class="label">Tool Creator</text>
+  <text x="175" y="245" text-anchor="middle" class="small-label">toolcreator.py</text>
+  <text x="175" y="260" text-anchor="middle" class="small-label">Self-improvement</text>
+  
+  <!-- Development Tools -->
+  <rect x="300" y="180" width="200" height="120" rx="10" class="dev" />
+  <text x="400" y="200" text-anchor="middle" class="title">Development Tools</text>
+  <text x="400" y="225" text-anchor="middle" class="label">UV Package Manager</text>
+  <text x="400" y="240" text-anchor="middle" class="small-label">uvpackagemanager.py</text>
+  <text x="400" y="260" text-anchor="middle" class="label">E2B Code Executor</text>
+  <text x="400" y="275" text-anchor="middle" class="small-label">e2bcodetool.py</text>
+  <text x="400" y="295" text-anchor="middle" class="label">Linting Tool</text>
+  
+  <!-- File System Tools -->
+  <rect x="550" y="180" width="150" height="160" rx="10" class="file" />
+  <text x="625" y="200" text-anchor="middle" class="title">File System Tools</text>
+  <text x="625" y="225" text-anchor="middle" class="label">Create Folders</text>
+  <text x="625" y="245" text-anchor="middle" class="label">File Creator</text>
+  <text x="625" y="265" text-anchor="middle" class="label">File Content Reader</text>
+  <text x="625" y="285" text-anchor="middle" class="label">File Edit</text>
+  <text x="625" y="305" text-anchor="middle" class="label">Diff Editor</text>
+  <text x="625" y="325" text-anchor="middle" class="small-label">*.py in tools/</text>
+  
+  <!-- Web Tools -->
+  <rect x="200" y="350" width="150" height="120" rx="10" class="web" />
+  <text x="275" y="370" text-anchor="middle" class="title">Web Tools</text>
+  <text x="275" y="395" text-anchor="middle" class="label">DuckDuckGo</text>
+  <text x="275" y="410" text-anchor="middle" class="small-label">duckduckgotool.py</text>
+  <text x="275" y="430" text-anchor="middle" class="label">Web Scraper</text>
+  <text x="275" y="445" text-anchor="middle" class="small-label">webscrapertool.py</text>
+  <text x="275" y="465" text-anchor="middle" class="label">Browser</text>
+  
+  <!-- Utility Tools -->
+  <rect x="400" y="350" width="150" height="100" rx="10" class="utility" />
+  <text x="475" y="370" text-anchor="middle" class="title">Utility Tools</text>
+  <text x="475" y="395" text-anchor="middle" class="label">Screenshot Tool</text>
+  <text x="475" y="410" text-anchor="middle" class="small-label">screenshottool.py</text>
+  <text x="475" y="430" text-anchor="middle" class="label">Weather Tool</text>
+  <text x="475" y="445" text-anchor="middle" class="small-label">weathertool.py</text>
+  
+  <!-- Dynamic Tool Creation -->
+  <rect x="200" y="500" width="400" height="80" rx="10" class="box" style="fill: #fffde7; stroke: #ffc107;" />
+  <text x="400" y="530" text-anchor="middle" class="title">Dynamic Tool Creation</text>
+  <text x="400" y="550" text-anchor="middle" class="label">New tools can be created during conversations</text>
+  <text x="400" y="570" text-anchor="middle" class="label">and automatically loaded into the system</text>
+  
+  <!-- Connections -->
+  <path d="M 400 120 L 400 150 L 175 150 L 175 180" class="arrow" />
+  <path d="M 400 120 L 400 180" class="arrow" />
+  <path d="M 400 120 L 400 150 L 625 150 L 625 180" class="arrow" />
+  <path d="M 400 300 L 400 330 L 275 330 L 275 350" class="arrow" />
+  <path d="M 400 300 L 400 350" class="arrow" />
+  
+  <path d="M 175 260 L 175 530 L 200 530" class="arrow dashed" style="stroke: #ffc107;" />
+  <path d="M 400 450 L 400 500" class="arrow" />
+</svg>
