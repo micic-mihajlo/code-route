@@ -258,6 +258,3 @@ ANTHROPIC_API_KEY=your_anthropic_key
 E2B_API_KEY=your_e2b_key
 ```
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=Doriandarko/code-route&type=Date)](https://star-history.com/#Doriandarko/code-route&Date)
