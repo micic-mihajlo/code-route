@@ -60,6 +60,20 @@ class Assistant:
 
         self.tools = self._load_tools()
 
+    def export_conversation(self, filename: str):
+        """
+        Exports the current conversation history to a JSON file.
+        """
+        try:
+            conversation_json = json.dumps(self.conversation_history, indent=2)
+            with open(filename, 'w') as f:
+                f.write(conversation_json)
+            self.console.print(f"[green]Conversation exported successfully to {filename}[/green]")
+        except IOError as e:
+            self.console.print(f"[red]Error exporting conversation to {filename}: {e}[/red]")
+        except Exception as e: # Catch any other unexpected errors during export
+            self.console.print(f"[red]An unexpected error occurred during export to {filename}: {e}[/red]")
+
     def _execute_uv_install(self, package_name: str) -> bool:
         """
         Execute the uvpackagemanager tool directly to install the missing package.
@@ -113,7 +127,16 @@ class Assistant:
                     # handle missing dependencies
                     missing_module = self._parse_missing_dependency(str(e))
                     self.console.print(f"\n[yellow]Missing dependency:[/yellow] {missing_module} for tool {module_info.name}")
-                    user_response = input(f"Would you like to install {missing_module}? (y/n): ").lower()
+                    
+                    user_response = 'n' # Default to 'n'
+                    if sys.stdin.isatty(): # Check if running in an interactive terminal
+                        try:
+                            user_response = input(f"Would you like to install {missing_module}? (y/n): ").lower()
+                        except EOFError: # Handle cases where input is not available (e.g. piped input)
+                            self.console.print("[yellow]EOFError reading input. Defaulting to 'n' for installation.[/yellow]")
+                            user_response = 'n'
+                    else:
+                        self.console.print(f"[yellow]Non-interactive session. Defaulting to 'n' for installing {missing_module}.[/yellow]")
 
                     if user_response == 'y':
                         success = self._execute_uv_install(missing_module)
@@ -675,6 +698,27 @@ Type 'quit' to exit
                 break
             elif user_input.lower() == 'reset':
                 assistant.reset()
+                continue
+            elif user_input.lower().startswith('export '):
+                parts = user_input.split(maxsplit=1)
+                if len(parts) < 2 or not parts[1].strip():
+                    console.print("[bold red]Export command requires a filename. Usage: export <filename>[/bold red]")
+                else:
+                    filename = parts[1].strip()
+                    # Assuming assistant.export_conversation(filename) will be implemented
+                    # For now, let's simulate the call and success
+                    try:
+                        # Placeholder for actual export logic:
+                        # assistant.export_conversation(filename)
+                        # This is where the actual method call will go.
+                        # For this step, we'll just print a message as if it worked.
+                        # In a future step, we'll implement assistant.export_conversation.
+                        with open(filename, 'w') as f:
+                            # Simulate writing some conversation data for testing purposes
+                            f.write(json.dumps(assistant.conversation_history, indent=2))
+                        console.print(f"\n[bold green]Conversation exported to {filename}[/bold green]")
+                    except Exception as e:
+                        console.print(f"\n[bold red]Error exporting conversation: {str(e)}[/bold red]")
                 continue
 
             response = assistant.chat(user_input)
