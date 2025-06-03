@@ -129,7 +129,7 @@ This cycle allows Code Route to continuously evolve its capabilities based on us
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.9+
 - OpenRouter API Key (get one at [openrouter.ai](https://openrouter.ai/))
 - E2B API Key (optional, for code execution, get one at [e2b.dev](https://e2b.dev/))
 
