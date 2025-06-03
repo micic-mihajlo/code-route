@@ -53,13 +53,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/cev3"
-Repository = "https://github.com/yourusername/cev3"
-Documentation = "https://github.com/yourusername/cev3#readme"
-"Bug Tracker" = "https://github.com/yourusername/cev3/issues"
-
-[tool.hatch]
-version.path = "cev3/__init__.py"
+Homepage = "https://github.com/yourusername/cr"
+Repository = "https://github.com/yourusername/cr"
+Documentation = "https://github.com/yourusername/cr#readme"
+"Bug Tracker" = "https://github.com/yourusername/cr/issues"
 
 [tool.ruff]
 line-length = 88
@@ -76,7 +73,7 @@ select = [
 ignore = []
 
 [tool.ruff.isort]
-known-first-party = ["cev3"]
+known-first-party = ["cr"]
 
 [tool.ruff.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -107,11 +104,11 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --cov=cev3 --cov-report=term-missing"
+addopts = "-ra -q --cov=cr --cov-report=term-missing"
 testpaths = ["tests"]
 
 [tool.uv.workspace]
 members = ["testfolder"]
 
 [project.scripts]
-cev3 = "cev3.cev3:main"
+cr = "cr:main"
