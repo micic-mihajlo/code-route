@@ -1,29 +1,29 @@
 # cr.py
 # import anthropic
-from openai import OpenAI
-from rich.console import Console
-from rich.markdown import Markdown
-from rich.live import Live
-from rich.spinner import Spinner
-from rich.panel import Panel
-from typing import List, Dict, Any
 import importlib
 import inspect
-import pkgutil
-import os
 import json
-import sys
 import logging
-from rich.table import Table
-from rich.tree import Tree
-from rich.syntax import Syntax
-from rich.progress import Progress, BarColumn, TextColumn
+import pkgutil
+import sys
+from typing import Any, Dict, List
 
-from config import Config
-from tools.base import BaseTool
+from openai import OpenAI
 from prompt_toolkit import prompt
 from prompt_toolkit.styles import Style
+from rich.console import Console
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.progress import BarColumn, Progress, TextColumn
+from rich.spinner import Spinner
+from rich.syntax import Syntax
+from rich.table import Table
+from rich.tree import Tree
+
+from config import Config
 from prompts.system_prompts import SystemPrompts
+from tools.base import BaseTool
 
 # Configure logging to only show ERROR level and above
 logging.basicConfig(
@@ -57,6 +57,7 @@ class Assistant:
         self.thinking_enabled = getattr(Config, 'ENABLE_THINKING', False)
         self.temperature = getattr(Config, 'DEFAULT_TEMPERATURE', 0.65)
         self.total_tokens_used = 0
+        self.current_model = Config.MODEL
 
         self.tools = self._load_tools()
 
@@ -69,7 +70,7 @@ class Assistant:
             with open(filename, 'w') as f:
                 f.write(conversation_json)
             self.console.print(f"[green]Conversation exported successfully to {filename}[/green]")
-        except IOError as e:
+        except OSError as e:
             self.console.print(f"[red]Error exporting conversation to {filename}: {e}[/red]")
         except Exception as e: # Catch any other unexpected errors during export
             self.console.print(f"[red]An unexpected error occurred during export to {filename}: {e}[/red]")
@@ -146,15 +147,15 @@ class Assistant:
                                 module = importlib.import_module(f'tools.{module_info.name}')
                                 self._extract_tools_from_module(module, tools)
                             except Exception as retry_err:
-                                self.console.print(f"[red]Failed to load tool after installation: {str(retry_err)}[/red]")
+                                self.console.print(f"[red]Failed to load tool after installation: {retry_err!s}[/red]")
                         else:
                             self.console.print(f"[red]Installation of {missing_module} failed. Skipping this tool.[/red]")
                     else:
                         self.console.print(f"[yellow]Skipping tool {module_info.name} due to missing dependency[/yellow]")
                 except Exception as mod_err:
-                    self.console.print(f"[red]Error loading module {module_info.name}:[/red] {str(mod_err)}")
+                    self.console.print(f"[red]Error loading module {module_info.name}:[/red] {mod_err!s}")
         except Exception as overall_err:
-            self.console.print(f"[red]Error in tool loading process:[/red] {str(overall_err)}")
+            self.console.print(f"[red]Error in tool loading process:[/red] {overall_err!s}")
 
         return tools
 
@@ -188,7 +189,7 @@ class Assistant:
                     })
                     self.console.print(f"[green]Loaded tool:[/green] {tool_instance.name}")
                 except Exception as tool_init_err:
-                    self.console.print(f"[red]Error initializing tool {name}:[/red] {str(tool_init_err)}")
+                    self.console.print(f"[red]Error initializing tool {name}:[/red] {tool_init_err!s}")
 
     def refresh_tools(self):
         """
@@ -220,6 +221,34 @@ class Assistant:
             self.console.print("\n")
 
         self.display_available_tools()
+
+    def set_model(self, model_name: str) -> str:
+        """
+        Switch to a different model.
+        """
+        if model_name not in Config.AVAILABLE_MODELS:
+            return f"Model '{model_name}' not available. Use 'models' command to see available models."
+        
+        old_model = self.current_model
+        self.current_model = model_name
+        model_display_name = Config.AVAILABLE_MODELS[model_name]
+        return f"Switched from {Config.AVAILABLE_MODELS.get(old_model, old_model)} to {model_display_name}"
+
+    def list_models(self) -> str:
+        """
+        List all available models.
+        """
+        models_table = Table(title="Available Models", show_header=True, header_style="bold cyan", border_style="cyan")
+        models_table.add_column("Model ID", style="yellow", width=35)
+        models_table.add_column("Display Name", style="white")
+        models_table.add_column("Status", style="green", width=10)
+        
+        for model_id, display_name in Config.AVAILABLE_MODELS.items():
+            status = "Current" if model_id == self.current_model else ""
+            models_table.add_row(model_id, display_name, status)
+        
+        self.console.print(models_table)
+        return f"Current model: {Config.AVAILABLE_MODELS.get(self.current_model, self.current_model)}"
 
     def display_available_tools(self):
         """
@@ -377,11 +406,11 @@ class Assistant:
                     # keep structured data intact for display function
                     tool_result = result
                 except Exception as exec_err:
-                    tool_result = f"Error executing tool '{tool_name}': {str(exec_err)}"
+                    tool_result = f"Error executing tool '{tool_name}': {exec_err!s}"
         except ImportError:
             tool_result = f"Failed to import tool: {tool_name}"
         except Exception as e:
-            tool_result = f"Error executing tool: {str(e)}"
+            tool_result = f"Error executing tool: {e!s}"
 
         # display tool usage with proper handling of structured data
         self._display_tool_usage(tool_name, tool_input, tool_result)
@@ -391,7 +420,7 @@ class Assistant:
         """
         search a given module for a tool class matching tool_name and return an instance of it.
         """
-        for name, obj in inspect.getmembers(module):
+        for _, obj in inspect.getmembers(module):
             if (inspect.isclass(obj) and issubclass(obj, BaseTool) and obj != BaseTool):
                 candidate_tool = obj()
                 if candidate_tool.name == tool_name:
@@ -428,7 +457,7 @@ class Assistant:
         )
 
         # add task to progress bar
-        task_id = progress.add_task("Conversation Progress", total=max_tokens, completed=new_total)
+        progress.add_task("Conversation Progress", total=max_tokens, completed=new_total)
 
         self.console.print("\nToken Usage:")
         self.console.print(progress)
@@ -485,7 +514,7 @@ class Assistant:
 
             # make the API call
             response = self.client.chat.completions.create(
-                model=Config.MODEL,
+                model=self.current_model,
                 max_tokens=min(
                     Config.MAX_TOKENS,
                     Config.MAX_CONVERSATION_TOKENS - self.total_tokens_used
@@ -558,7 +587,7 @@ class Assistant:
                         self.console.print(input_syntax)
                         self.console.print("---") # separator after args
                     except TypeError:
-                        self.console.print(f"[yellow]  Arguments:[/yellow] {str(tool_args)}")
+                        self.console.print(f"[yellow]  Arguments:[/yellow] {tool_args!s}")
                         self.console.print("---")
 
 
@@ -574,7 +603,7 @@ class Assistant:
                             # execute the tool with the provided input
                             result = tool_instance.execute(**tool_args)
                     except Exception as e:
-                        result = f"Error executing tool '{tool_name}': {str(e)}"
+                        result = f"Error executing tool '{tool_name}': {e!s}"
 
                     # add the tool result to the conversation
                     tool_results.append({
@@ -604,9 +633,9 @@ class Assistant:
                 return "No response content available."
 
         except Exception as e:
-            logging.error(f"Error in _get_completion: {str(e)}")
-            self.console.print(f"[red]Error: {str(e)}[/red]")
-            return f"Error: {str(e)}"
+            logging.error(f"Error in _get_completion: {e!s}")
+            self.console.print(f"[red]Error: {e!s}[/red]")
+            return f"Error: {e!s}"
 
     def chat(self, user_input):
         """
@@ -623,6 +652,11 @@ class Assistant:
                 return "Conversation reset!"
             elif user_input.lower() == 'quit':
                 return "Goodbye!"
+            elif user_input.lower() == 'models':
+                return self.list_models()
+            elif user_input.lower().startswith('model '):
+                model_name = user_input[6:].strip()
+                return self.set_model(model_name)
 
         try:
             # add user message to conversation history
@@ -642,8 +676,8 @@ class Assistant:
             return response
 
         except Exception as e:
-            logging.error(f"Error in chat: {str(e)}")
-            return f"Error: {str(e)}"
+            logging.error(f"Error in chat: {e!s}")
+            return f"Error: {e!s}"
 
     def reset(self):
         """
@@ -658,6 +692,8 @@ class Assistant:
 
 Type 'refresh' to reload available tools
 Type 'reset' to clear conversation history
+Type 'models' to list available models
+Type 'model <model_name>' to switch models
 Type 'quit' to exit
 """
         self.console.print(Markdown(welcome_text))
@@ -675,7 +711,7 @@ def main():
     try:
         assistant = Assistant()
     except ValueError as e:
-        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+        console.print(f"[bold red]Error:[/bold red] {e!s}")
         console.print("Please ensure OPENROUTER_API_KEY is set correctly.")
         return
 
@@ -684,6 +720,8 @@ def main():
 
 Type 'refresh' to reload available tools
 Type 'reset' to clear conversation history
+Type 'models' to list available models
+Type 'model <model_name>' to switch models
 Type 'quit' to exit
 """
     console.print(Markdown(welcome_text))
@@ -718,7 +756,7 @@ Type 'quit' to exit
                             f.write(json.dumps(assistant.conversation_history, indent=2))
                         console.print(f"\n[bold green]Conversation exported to {filename}[/bold green]")
                     except Exception as e:
-                        console.print(f"\n[bold red]Error exporting conversation: {str(e)}[/bold red]")
+                        console.print(f"\n[bold red]Error exporting conversation: {e!s}[/bold red]")
                 continue
 
             response = assistant.chat(user_input)

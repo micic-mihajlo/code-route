@@ -1,8 +1,12 @@
 # Minimal comment added for commit
-from cr import Assistant
-from config import Config
 import base64
-import json # Import json for parsing tool results
+import json  # Import json for parsing tool results
+
+import streamlit as st
+
+from config import Config
+from cr import Assistant
+
 
 def init_state():
     if "assistant" not in st.session_state:
@@ -38,7 +42,7 @@ def render_chat():
                      st.markdown(content)
 
                 # Display tool calls if present
-                if "tool_calls" in message and message["tool_calls"]:
+                if message.get("tool_calls"):
                     st.markdown("---") # Separator
                     calls = message["tool_calls"]
                     if len(calls) == 1:
@@ -80,15 +84,27 @@ def main():
     init_state()
 
     # Header -------------------------------------------------------------
-    col1, col2, col3 = st.columns([1, 6, 1])
+    col1, col2, col3, col4 = st.columns([1, 4, 1, 1])
     with col2:
         st.markdown("## 🛤️  **Code Route**  – your coding copilot")
     with col3:
-        if st.button("🔄 Reset chat", use_container_width=True):
+        # Model selection
+        current_model = st.session_state.assistant.current_model
+        selected_model = st.selectbox(
+            "Model", 
+            options=list(Config.AVAILABLE_MODELS.keys()),
+            format_func=lambda x: Config.AVAILABLE_MODELS[x],
+            index=list(Config.AVAILABLE_MODELS.keys()).index(current_model),
+            key="model_selector"
+        )
+        if selected_model != current_model:
+            st.session_state.assistant.set_model(selected_model)
+            st.rerun()
+    with col4:
+        if st.button("🔄 Reset", use_container_width=True):
             st.session_state.assistant.reset()
             st.session_state.messages = []
-            # st.session_state.last_tool = None # Removed
-            st.experimental_rerun()
+            st.rerun()
 
     st.divider()
 

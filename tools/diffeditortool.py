@@ -1,6 +1,7 @@
-from tools.base import BaseTool
 import os
-from typing import Dict
+
+from tools.base import BaseTool
+
 
 class DiffEditorTool(BaseTool):
     name = "diffeditortool"
@@ -49,10 +50,10 @@ class DiffEditorTool(BaseTool):
 
         # Read the file content
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding='utf-8') as f:
                 content = f.read()
         except Exception as e:
-            return f"Error reading file {path}: {str(e)}"
+            return f"Error reading file {path}: {e!s}"
 
         # Locate the old_text in the file
         index = content.find(old_text)
@@ -68,6 +69,6 @@ class DiffEditorTool(BaseTool):
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
         except Exception as e:
-            return f"Error writing updated content to file {path}: {str(e)}"
+            return f"Error writing updated content to file {path}: {e!s}"
 
         return f"Successfully replaced '{old_text}' with '{new_text}' in {path}."

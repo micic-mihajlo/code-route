@@ -1,8 +1,10 @@
-from tools.base import BaseTool
 import webbrowser
-import validators
-from typing import Union, List
 from urllib.parse import urlparse
+
+import validators
+
+from tools.base import BaseTool
+
 
 class BrowserTool(BaseTool):
     name = "browsertool"
@@ -47,6 +49,6 @@ class BrowserTool(BaseTool):
                 webbrowser.open(url)
                 results.append(f"Successfully opened {url}")
             except Exception as e:
-                results.append(f"Error opening {url}: {str(e)}")
+                results.append(f"Error opening {url}: {e!s}")
 
         return "\n".join(results)

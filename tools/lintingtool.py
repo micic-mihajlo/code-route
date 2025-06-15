@@ -1,7 +1,7 @@
-from tools.base import BaseTool
 import subprocess
-from typing import List
-import json
+
+from tools.base import BaseTool
+
 
 class LintingTool(BaseTool):
     name = "lintingtool"
@@ -107,4 +107,4 @@ class LintingTool(BaseTool):
             )
             return result.stdout + result.stderr
         except Exception as e:
-            return f"Error running ruff check: {str(e)}"
+            return f"Error running ruff check: {e!s}"

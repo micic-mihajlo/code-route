@@ -1,7 +1,9 @@
-from tools.base import BaseTool
-import os
 import json
 import mimetypes
+import os
+
+from tools.base import BaseTool
+
 
 class FileContentReaderTool(BaseTool):
     name = "filecontentreadertool"
@@ -32,7 +34,7 @@ class FileContentReaderTool(BaseTool):
         '.ogg', '.ogv', '.webp', '.heic', '.raw', '.svg', '.ico', '.icns',
         # Archive files
         '.zip', '.tar', '.gz', '.rar', '.7z', '.pkg', '.deb', '.rpm', '.snap',
-        '.bz2', '.xz', '.cab', '.iso', '.tgz', '.tbz2', '.lz', '.lzma', '.tlz',
+        '.bz2', '.xz', '.cab', '.tgz', '.tbz2', '.lz', '.lzma', '.tlz',
         # IDE and editor files
         '.sln', '.suo', '.user', '.workspace', '.project', '.classpath', '.iml',
         # Log and temp files
@@ -83,7 +85,7 @@ class FileContentReaderTool(BaseTool):
             if self._should_skip(file_path):
                 return "Skipped: Binary or ignored file type"
 
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, encoding='utf-8') as file:
                 return file.read()
 
         except PermissionError:
@@ -93,7 +95,7 @@ class FileContentReaderTool(BaseTool):
         except UnicodeDecodeError:
             return "Error: Unable to decode file (likely binary)"
         except Exception as e:
-            return f"Error: {str(e)}"
+            return f"Error: {e!s}"
 
     def _read_directory(self, dir_path: str) -> dict:
         """Recursively read all files in a directory."""
@@ -112,7 +114,7 @@ class FileContentReaderTool(BaseTool):
                         results[file_path] = content
 
         except Exception as e:
-            results[dir_path] = f"Error reading directory: {str(e)}"
+            results[dir_path] = f"Error reading directory: {e!s}"
 
         return results
 

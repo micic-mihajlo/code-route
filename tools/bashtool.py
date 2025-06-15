@@ -1,6 +1,8 @@
-from typing import Dict
 import subprocess
+from typing import Dict
+
 from .base import BaseTool
+
 
 class BashTool(BaseTool):
     @property
@@ -52,4 +54,4 @@ class BashTool(BaseTool):
         except subprocess.TimeoutExpired:
             return f'Error: Command timed out after {timeout} seconds'
         except Exception as e:
-            return f'Error executing command: {str(e)}' 
+            return f'Error executing command: {e!s}' 

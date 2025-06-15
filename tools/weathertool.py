@@ -1,7 +1,10 @@
-from tools.base import BaseTool
-import requests
 import os
+
+import requests
 from dotenv import load_dotenv
+
+from tools.base import BaseTool
+
 
 class WeatherTool(BaseTool):
     name = "weathertool"

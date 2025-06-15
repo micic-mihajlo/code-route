@@ -1,12 +1,15 @@
-from tools.base import BaseTool
-from rich.console import Console
-from rich.panel import Panel
-from pathlib import Path
 import os
-from dotenv import load_dotenv
 import re
+from pathlib import Path
+
+from dotenv import load_dotenv
+
 # import anthropic
 from openai import OpenAI
+from rich.console import Console
+from rich.panel import Panel
+
+from tools.base import BaseTool
 
 load_dotenv()
 
@@ -132,4 +135,4 @@ Type 'refresh' to load your new tool."""
             return result
 
         except Exception as e:
-            return f"[bold red]Error creating tool:[/bold red] {str(e)}"
+            return f"[bold red]Error creating tool:[/bold red] {e!s}"

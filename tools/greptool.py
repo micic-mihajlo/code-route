@@ -1,7 +1,9 @@
-from typing import Dict, List
-import re
 import os
+import re
+from typing import Dict
+
 from .base import BaseTool
+
 
 class GrepTool(BaseTool):
     @property
@@ -64,7 +66,7 @@ class GrepTool(BaseTool):
                     continue
 
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, encoding='utf-8') as f:
                         for i, line in enumerate(f, 1):
                             if regex.search(line):
                                 if line_numbers:
@@ -72,8 +74,8 @@ class GrepTool(BaseTool):
                                 else:
                                     results.append(f'{file_path}: {line.rstrip()}')
                 except Exception as e:
-                    results.append(f'Error reading {file_path}: {str(e)}')
+                    results.append(f'Error reading {file_path}: {e!s}')
 
             return '\n'.join(results) if results else 'No matches found'
         except Exception as e:
-            return f'Error searching files: {str(e)}' 
+            return f'Error searching files: {e!s}' 

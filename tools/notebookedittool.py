@@ -1,7 +1,9 @@
-from typing import Dict, List
 import json
 import os
+from typing import Dict
+
 from .base import BaseTool
+
 
 class NotebookEditTool(BaseTool):
     @property
@@ -58,7 +60,7 @@ class NotebookEditTool(BaseTool):
             return f'Error: {file_path} is not a file'
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 notebook = json.load(f)
 
             if 'cells' not in notebook:
@@ -96,4 +98,4 @@ class NotebookEditTool(BaseTool):
         except json.JSONDecodeError:
             return 'Error: Invalid JSON in notebook file'
         except Exception as e:
-            return f'Error modifying notebook: {str(e)}' 
+            return f'Error modifying notebook: {e!s}' 

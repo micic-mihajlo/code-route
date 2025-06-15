@@ -1,7 +1,9 @@
-from typing import Dict, List
 import glob
 import os
+from typing import Dict
+
 from .base import BaseTool
+
 
 class GlobTool(BaseTool):
     @property
@@ -54,4 +56,4 @@ class GlobTool(BaseTool):
             
             return '\n'.join(matches) if matches else 'No files found matching the pattern'
         except Exception as e:
-            return f'Error finding files: {str(e)}' 
+            return f'Error finding files: {e!s}' 

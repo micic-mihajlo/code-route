@@ -1,13 +1,13 @@
-from tools.base import BaseTool
-from typing import List, Dict, Any, Optional
 import base64
 import io
-import json  # Add this import
+from typing import Any
+
+from tools.base import BaseTool
 
 try:
     import pyautogui
     from PIL import Image
-except ImportError as e:
+except ImportError:
     # If pyautogui or PIL is missing, you may need to rely on the uvpackagemanager tool
     # or instruct the user to install them. For now, just raise an error.
     raise ImportError("The ScreenshotTool requires 'pyautogui' and 'Pillow' to be installed.")
@@ -77,4 +77,4 @@ class ScreenshotTool(BaseTool):
             ]
 
         except Exception as e:
-            return f"Error capturing screenshot: {str(e)}"
+            return f"Error capturing screenshot: {e!s}"

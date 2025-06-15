@@ -1,10 +1,11 @@
-from tools.base import BaseTool
-from e2b_code_interpreter import Sandbox
-from dotenv import load_dotenv
-import os
-import time
-import json
 import base64
+import json
+
+from dotenv import load_dotenv
+from e2b_code_interpreter import Sandbox
+
+from tools.base import BaseTool
+
 
 class E2bCodeTool(BaseTool):
     name = "e2bcodetool"
@@ -82,7 +83,7 @@ class E2bCodeTool(BaseTool):
                 except Exception as e:
                     return json.dumps({
                         "success": False,
-                        "error": f"Failed to upload file {sandbox_path}: {str(e)}",
+                        "error": f"Failed to upload file {sandbox_path}: {e!s}",
                         "stdout": "",
                         "stderr": ""
                     }, indent=2)
@@ -101,7 +102,7 @@ class E2bCodeTool(BaseTool):
                         content = f"data:application/octet-stream;base64,{content}"
                     downloaded_files[file_path] = content
                 except Exception as e:
-                    downloaded_files[file_path] = f"Error downloading: {str(e)}"
+                    downloaded_files[file_path] = f"Error downloading: {e!s}"
             
             response = {
                 "stdout": result.logs.stdout,
@@ -117,7 +118,7 @@ class E2bCodeTool(BaseTool):
         except Exception as e:
             return json.dumps({
                 "success": False,
-                "error": f"Tool execution failed: {str(e)}",
+                "error": f"Tool execution failed: {e!s}",
                 "stdout": "",
                 "stderr": "",
                 "uploaded_files": [],

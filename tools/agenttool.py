@@ -1,9 +1,8 @@
-from typing import Dict, List
 import json
-import sys
-import os
-from pathlib import Path
+from typing import Dict, List
+
 from .base import BaseTool
+
 
 class AgentTool(BaseTool):
     @property
@@ -59,7 +58,7 @@ class AgentTool(BaseTool):
             result = self._create_agent_plan(task, task_type, context_files, requirements)
             return result
         except Exception as e:
-            return f'Error creating agent plan: {str(e)}'
+            return f'Error creating agent plan: {e!s}'
 
     def _create_agent_plan(self, task: str, task_type: str, context_files: List[str], requirements: List[str]) -> str:
         """Create a detailed plan for the sub-agent task"""
@@ -86,16 +85,16 @@ class AgentTool(BaseTool):
             response += f"{i}. {step}\n"
         
         if context_files:
-            response += f"\n**Context Files to Analyze**:\n"
+            response += "\n**Context Files to Analyze**:\n"
             for file in context_files:
                 response += f"- {file}\n"
         
         if requirements:
-            response += f"\n**Requirements**:\n"
+            response += "\n**Requirements**:\n"
             for req in requirements:
                 response += f"- {req}\n"
         
-        response += f"\n**Recommended Next Steps**:\n"
+        response += "\n**Recommended Next Steps**:\n"
         for i, step in enumerate(plan["next_steps"], 1):
             response += f"{i}. {step}\n"
         

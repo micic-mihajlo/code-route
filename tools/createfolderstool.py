@@ -1,7 +1,8 @@
-from tools.base import BaseTool
 import os
-import pathlib
 from typing import List
+
+from tools.base import BaseTool
+
 
 class CreateFoldersTool(BaseTool):
     name = "createfolderstool"
@@ -49,8 +50,8 @@ class CreateFoldersTool(BaseTool):
             except PermissionError:
                 results.append(f"Permission denied: Unable to create folder {path}")
             except OSError as e:
-                results.append(f"Error creating folder {path}: {str(e)}")
+                results.append(f"Error creating folder {path}: {e!s}")
             except Exception as e:
-                results.append(f"Unexpected error creating folder {path}: {str(e)}")
+                results.append(f"Unexpected error creating folder {path}: {e!s}")
 
         return "\n".join(results)

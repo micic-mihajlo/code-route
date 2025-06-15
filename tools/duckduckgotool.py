@@ -1,7 +1,10 @@
-from tools.base import BaseTool
+from urllib.parse import quote_plus
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import quote_plus
+
+from tools.base import BaseTool
+
 
 class DuckduckgoTool(BaseTool):
     name = "duckduckgotool"
@@ -59,4 +62,4 @@ class DuckduckgoTool(BaseTool):
             return "\n".join(results)
 
         except requests.RequestException as e:
-            return f"Error performing search: {str(e)}"
+            return f"Error performing search: {e!s}"

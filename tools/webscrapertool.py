@@ -1,7 +1,10 @@
-from tools.base import BaseTool
+import re
+
 import requests
 from bs4 import BeautifulSoup, Comment
-import re
+
+from tools.base import BaseTool
+
 
 class WebScraperTool(BaseTool):
     name = "webscrapertool"
@@ -119,6 +122,6 @@ class WebScraperTool(BaseTool):
             return final_output
 
         except requests.RequestException as e:
-            return f"Error scraping the webpage: {str(e)}"
+            return f"Error scraping the webpage: {e!s}"
         except Exception as e:
-            return f"An unexpected error occurred: {str(e)}"
+            return f"An unexpected error occurred: {e!s}"

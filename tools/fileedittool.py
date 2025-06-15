@@ -1,6 +1,8 @@
-from tools.base import BaseTool
 import os
 import re
+
+from tools.base import BaseTool
+
 
 class FileEditTool(BaseTool):
     name = "fileedittool"
@@ -35,7 +37,7 @@ class FileEditTool(BaseTool):
             if not os.path.exists(file_path):
                 raise FileNotFoundError(f"File not found: {file_path}")
 
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, encoding='utf-8') as file:
                 original_content = file.read()
                 lines = original_content.splitlines()
 
@@ -60,7 +62,7 @@ class FileEditTool(BaseTool):
             return f"File successfully updated: {file_path}\n{updated_content}"
 
         except Exception as e:
-            return f"Error editing file: {str(e)}"
+            return f"Error editing file: {e!s}"
 
     def _edit_by_lines(self, lines: list, start_line: int, end_line: int, new_content: str) -> str:
         if start_line < 1 or end_line > len(lines) or start_line > end_line:
@@ -73,4 +75,4 @@ class FileEditTool(BaseTool):
         try:
             return re.sub(pattern, replacement, content)
         except re.error as e:
-            raise ValueError(f"Invalid regular expression pattern: {str(e)}")
+            raise ValueError(f"Invalid regular expression pattern: {e!s}")
