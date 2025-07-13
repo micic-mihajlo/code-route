@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 
 class FileCreatorTool(BaseTool):

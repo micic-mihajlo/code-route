@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 
 class CreateFoldersTool(BaseTool):

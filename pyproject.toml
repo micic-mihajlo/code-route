@@ -3,13 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cr"
+name = "code-route"
 version = "0.1.0"
-description = "A self-improving assistant framework with tool creation capabilities"
+description = "A self-improving AI assistant framework with dynamic tool creation and orchestration"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [{ name = "Your Name", email = "your.email@example.com" }]
+authors = [{ name = "Mihajlo Micic", email = "mihajlo@example.com" }]
+keywords = ["ai", "assistant", "tools", "cli", "automation", "self-improving"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -53,10 +54,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/cr"
-Repository = "https://github.com/yourusername/cr"
-Documentation = "https://github.com/yourusername/cr#readme"
-"Bug Tracker" = "https://github.com/yourusername/cr/issues"
+Homepage = "https://github.com/micic-mihajlo/code-route"
+Repository = "https://github.com/micic-mihajlo/code-route"
+Documentation = "https://github.com/micic-mihajlo/code-route#readme"
+"Bug Tracker" = "https://github.com/micic-mihajlo/code-route/issues"
 
 [tool.ruff]
 line-length = 88
@@ -111,4 +112,5 @@ testpaths = ["tests"]
 members = ["testfolder"]
 
 [project.scripts]
-cr = "cr:main"
+code-route = "code_route.cli:main"
+cr = "code_route.cli:main"

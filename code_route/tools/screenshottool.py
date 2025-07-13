@@ -2,7 +2,7 @@ import base64
 import io
 from typing import Any
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 try:
     import pyautogui

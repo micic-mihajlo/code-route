@@ -3,7 +3,7 @@ import re
 import requests
 from bs4 import BeautifulSoup, Comment
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 
 class WebScraperTool(BaseTool):

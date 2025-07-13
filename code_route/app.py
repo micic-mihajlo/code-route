@@ -4,8 +4,8 @@ import json  # Import json for parsing tool results
 
 import streamlit as st
 
-from config import Config
-from cr import Assistant
+from .config import Config
+from .assistant import Assistant
 
 
 def init_state():

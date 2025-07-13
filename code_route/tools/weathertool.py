@@ -3,7 +3,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 
 class WeatherTool(BaseTool):

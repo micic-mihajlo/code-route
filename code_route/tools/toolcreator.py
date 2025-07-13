@@ -9,7 +9,7 @@ from openai import OpenAI
 from rich.console import Console
 from rich.panel import Panel
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 load_dotenv()
 
@@ -66,7 +66,7 @@ Important:
 Here's the required structure (including imports and format):
 
 ```python
-from tools.base import BaseTool  # This import must be present
+from .base import BaseTool  # This import must be present
 import requests  # Add any other required imports
 
 class ToolName(BaseTool):  # Class name must match name property in uppercase first letter

@@ -3,7 +3,7 @@ from urllib.parse import quote_plus
 import requests
 from bs4 import BeautifulSoup
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 
 class DuckduckgoTool(BaseTool):

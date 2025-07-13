@@ -4,7 +4,7 @@ import json
 from dotenv import load_dotenv
 from e2b_code_interpreter import Sandbox
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 
 class E2bCodeTool(BaseTool):

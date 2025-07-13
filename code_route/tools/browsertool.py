@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 import validators
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 
 class BrowserTool(BaseTool):

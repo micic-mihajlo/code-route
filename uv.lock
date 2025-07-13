@@ -268,6 +268,72 @@ wheels = [
 ]
 
 [[package]]
+name = "code-route"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "anthropic" },
+    { name = "beautifulsoup4" },
+    { name = "e2b-code-interpreter" },
+    { name = "flask" },
+    { name = "markdownify" },
+    { name = "matplotlib" },
+    { name = "openai" },
+    { name = "pillow" },
+    { name = "prompt-toolkit" },
+    { name = "protego" },
+    { name = "pyautogui" },
+    { name = "python-dotenv" },
+    { name = "readability-lxml" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "streamlit" },
+    { name = "validators" },
+    { name = "werkzeug" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "black" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "types-requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic" },
+    { name = "beautifulsoup4" },
+    { name = "black", marker = "extra == 'dev'" },
+    { name = "e2b-code-interpreter", specifier = ">=1.0.3" },
+    { name = "flask", specifier = ">=3.0.3" },
+    { name = "markdownify", specifier = ">=0.14.1" },
+    { name = "matplotlib", specifier = ">=3.9.2" },
+    { name = "mypy", marker = "extra == 'dev'" },
+    { name = "openai", specifier = ">=1.0.0" },
+    { name = "pillow" },
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "prompt-toolkit" },
+    { name = "protego", specifier = ">=0.3.1" },
+    { name = "pyautogui" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "python-dotenv" },
+    { name = "readability-lxml", specifier = ">=0.8.1" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "streamlit", specifier = ">=1.45.0" },
+    { name = "types-requests", marker = "extra == 'dev'" },
+    { name = "validators", specifier = ">=0.34.0" },
+    { name = "werkzeug", specifier = ">=3.1.2" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -424,72 +490,6 @@ wheels = [
 toml = [
     { name = "tomli", marker = "python_full_version <= '3.11'" },
 ]
-
-[[package]]
-name = "cr"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "anthropic" },
-    { name = "beautifulsoup4" },
-    { name = "e2b-code-interpreter" },
-    { name = "flask" },
-    { name = "markdownify" },
-    { name = "matplotlib" },
-    { name = "openai" },
-    { name = "pillow" },
-    { name = "prompt-toolkit" },
-    { name = "protego" },
-    { name = "pyautogui" },
-    { name = "python-dotenv" },
-    { name = "readability-lxml" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "streamlit" },
-    { name = "validators" },
-    { name = "werkzeug" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "black" },
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "types-requests" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anthropic" },
-    { name = "beautifulsoup4" },
-    { name = "black", marker = "extra == 'dev'" },
-    { name = "e2b-code-interpreter", specifier = ">=1.0.3" },
-    { name = "flask", specifier = ">=3.0.3" },
-    { name = "markdownify", specifier = ">=0.14.1" },
-    { name = "matplotlib", specifier = ">=3.9.2" },
-    { name = "mypy", marker = "extra == 'dev'" },
-    { name = "openai", specifier = ">=1.0.0" },
-    { name = "pillow" },
-    { name = "pre-commit", marker = "extra == 'dev'" },
-    { name = "prompt-toolkit" },
-    { name = "protego", specifier = ">=0.3.1" },
-    { name = "pyautogui" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "python-dotenv" },
-    { name = "readability-lxml", specifier = ">=0.8.1" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "ruff", marker = "extra == 'dev'" },
-    { name = "streamlit", specifier = ">=1.45.0" },
-    { name = "types-requests", marker = "extra == 'dev'" },
-    { name = "validators", specifier = ">=0.34.0" },
-    { name = "werkzeug", specifier = ">=3.1.2" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "cssselect"

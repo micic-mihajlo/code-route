@@ -1,20 +1,23 @@
-# 🛤️ Code Route: Self-Improving AI Assistant Framework
+# 🛤️ Code Route
 
-<div align="center">
-  <img src="assets/architecture.svg" alt="Code Route Architecture" width="800"/>
-</div>
+> A self-improving AI assistant framework with dynamic tool creation and orchestration
 
-## 🌟 What is Code Route?
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Global CLI](https://img.shields.io/badge/Global%20CLI-Ready-green.svg)](https://github.com/micic-mihajlo/code-route)
 
-Code Route is a revolutionary self-improving AI assistant framework that dynamically creates and manages AI tools during conversations. Unlike traditional AI assistants with fixed capabilities, Code Route can identify the need for new tools, design them, and implement them on the fly - becoming more powerful the more you use it.
+Code Route is a powerful, globally installable AI assistant that can create and execute tools dynamically, making it extensible and self-improving. Use it anywhere in your system like `gemini` or `tunacode` - but with unique capabilities for autonomous tool creation and visual enhancement.
 
-### 🚀 Key Innovations
+## ✨ Features
 
-- **Self-expanding capabilities**: Autonomously creates new tools when needed
-- **Multi-model support**: Leverages various AI models through OpenRouter API
-- **Dual interfaces**: Powerful CLI and modern web UI options
-- **Tool orchestration**: Intelligently chains tools for complex tasks
-- **Precise token management**: Optimizes context usage for longer conversations
+- **🔧 Dynamic Tool Creation**: Assistant can create new tools at runtime based on your needs
+- **🌐 Global CLI**: Install once, use anywhere - works in any directory
+- **🎨 Beautiful Interface**: Rich terminal UI with themed colors and visual feedback
+- **📱 Dual Interface**: Both CLI and web-based Streamlit interface
+- **🤖 Multi-Model Support**: Switch between different AI models (OpenAI, Anthropic, etc.)
+- **🔄 Self-Improving**: Tools persist and become available for future sessions
+- **📊 Token Tracking**: Real-time token usage monitoring with visual progress bars
+- **🛡️ Secure Execution**: Optional E2B integration for safe code execution
 
 <div align="center">
   <img src="assets/workflow.svg" alt="Code Route Workflow" width="800"/>
@@ -126,56 +129,93 @@ Code Route's unique self-improvement cycle works as follows:
 
 This cycle allows Code Route to continuously evolve its capabilities based on user interactions, becoming more powerful and tailored to specific needs over time.
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.9+
-- OpenRouter API Key (get one at [openrouter.ai](https://openrouter.ai/))
-- E2B API Key (optional, for code execution, get one at [e2b.dev](https://e2b.dev/))
-
-### Installation
-
-#### macOS and Linux
-```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Clone and setup
-git clone https://github.com/micic-mihajlo/cr-py.git
-cd cr-py
-uv venv
-source .venv/bin/activate
-
-# Run CLI or web interface
-uv run cr.py  # CLI
-# or
-uv run app.py  # Web UI
-```
-
-#### Windows
-```powershell
-# Install uv
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Clone and setup
-git clone https://github.com/micic-mihajlo/cr-py.git
-cd cr-py
-uv venv
-.venv\Scripts\activate
-
-# Run CLI or web interface
-uv run cr.py  # CLI
-# or
-uv run app.py  # Web UI
-```
-
-### Configuration
-
-Create a `.env` file in the project root with your API keys:
+### One-Line Installation
 
 ```bash
-OPENROUTER_API_KEY=your_openrouter_key
-E2B_API_KEY=your_e2b_key  # Optional
+curl -fsSL https://raw.githubusercontent.com/micic-mihajlo/code-route/main/install.sh | bash
+```
+
+### Manual Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/micic-mihajlo/code-route.git
+cd code-route
+
+# Install with uv (recommended)
+uv install
+uv pip install -e .
+
+# Or install with pip
+pip install -e .
+```
+
+### Setup
+
+1. **Initialize in any project:**
+   ```bash
+   code-route --init
+   ```
+
+2. **Add your API key to `.env`:**
+   ```bash
+   OPENROUTER_API_KEY=your_api_key_here
+   ```
+
+3. **Start the assistant:**
+   ```bash
+   code-route
+   # or use the short alias
+   cr
+   ```
+
+## 📋 Usage
+
+### Global Commands
+
+| Command | Description |
+|---------|-------------|
+| `code-route` | Start interactive assistant |
+| `code-route --web` | Launch web interface |
+| `code-route --init` | Initialize in current directory |
+| `code-route --tools` | Show available tools |
+| `code-route --status` | Show system status |
+| `code-route --version` | Show version |
+| `cr` | Short alias for `code-route` |
+
+### Interactive Commands
+
+| Command | Description |
+|---------|-------------|
+| `refresh` | Reload available tools |
+| `reset` | Clear conversation history |
+| `models` | List available models |
+| `model <name>` | Switch AI model |
+| `export <file>` | Export conversation |
+| `quit` | Exit application |
+
+### Example Workflow
+
+```bash
+# Initialize a new project
+mkdir my-project && cd my-project
+code-route --init
+
+# Check system status
+code-route --status
+
+# Start the assistant
+code-route
+
+# In the assistant:
+You: Create a tool that can analyze Python code complexity
+Code Route: I'll create a code complexity analyzer tool for you...
+
+# The tool is now available for future use!
+You: refresh
+Code Route: ✨ Tool list refreshed! Found new tool: PythonComplexityAnalyzer
 ```
 
 ## 💡 Usage Examples

@@ -20,10 +20,12 @@ from rich.spinner import Spinner
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.tree import Tree
+from rich.text import Text
 
-from config import Config
-from prompts.system_prompts import SystemPrompts
-from tools.base import BaseTool
+from .config import Config
+from .prompts.system_prompts import SystemPrompts
+from .tools.base import BaseTool
+from .themes import get_themed_console, STATUS_ICONS
 
 # Configure logging to only show ERROR level and above
 logging.basicConfig(
@@ -52,7 +54,7 @@ class Assistant:
         )
 
         self.conversation_history: List[Dict[str, Any]] = []
-        self.console = Console()
+        self.console = get_themed_console()
 
         self.thinking_enabled = getattr(Config, 'ENABLE_THINKING', False)
         self.temperature = getattr(Config, 'DEFAULT_TEMPERATURE', 0.65)
@@ -112,7 +114,7 @@ class Assistant:
 
         # clear cached tool modules for fresh import
         for module_name in list(sys.modules.keys()):
-            if module_name.startswith('tools.') and module_name != 'tools.base':
+            if module_name.startswith('code_route.tools.') and module_name != 'code_route.tools.base':
                 del sys.modules[module_name]
 
         try:
@@ -122,7 +124,7 @@ class Assistant:
 
                 # attempt loading the tool module
                 try:
-                    module = importlib.import_module(f'tools.{module_info.name}')
+                    module = importlib.import_module(f'code_route.tools.{module_info.name}')
                     self._extract_tools_from_module(module, tools)
                 except ImportError as e:
                     # handle missing dependencies
@@ -144,7 +146,7 @@ class Assistant:
                         if success:
                             # retry loading the module after installation
                             try:
-                                module = importlib.import_module(f'tools.{module_info.name}')
+                                module = importlib.import_module(f'code_route.tools.{module_info.name}')
                                 self._extract_tools_from_module(module, tools)
                             except Exception as retry_err:
                                 self.console.print(f"[red]Failed to load tool after installation: {retry_err!s}[/red]")
@@ -161,13 +163,18 @@ class Assistant:
 
     def _parse_missing_dependency(self, error_str: str) -> str:
         """
-        parse the missing dependency name from an ImportError string.
+        Parse the missing dependency name from an ImportError string.
         """
         if "No module named" in error_str:
             parts = error_str.split("No module named")
             missing_module = parts[-1].strip(" '\"")
+            # Remove any single quotes around the module name
+            missing_module = missing_module.strip("'\"")
+            # If it's a submodule, get the main package
+            if "." in missing_module:
+                missing_module = missing_module.split(".")[0]
         else:
-            missing_module = error_str
+            missing_module = "unknown"
         return missing_module
 
     def _extract_tools_from_module(self, module, tools: List[Dict[str, Any]]) -> None:
@@ -187,7 +194,7 @@ class Assistant:
                             "parameters": tool_instance.input_schema
                         }
                     })
-                    self.console.print(f"[green]Loaded tool:[/green] {tool_instance.name}")
+                    self.console.print(f"{STATUS_ICONS['success']} [success]Loaded tool:[/success] [tool]{tool_instance.name}[/tool]")
                 except Exception as tool_init_err:
                     self.console.print(f"[red]Error initializing tool {name}:[/red] {tool_init_err!s}")
 
@@ -201,24 +208,37 @@ class Assistant:
         added_tools = new_tool_names - current_tool_names
 
         if not added_tools:
-            self.console.print("\n[yellow]Tool list refreshed. No changes detected.[/yellow]")
+            refresh_panel = Panel(
+                f"{STATUS_ICONS['refresh']} Tool list refreshed - no changes detected",
+                style="warning",
+                border_style="yellow"
+            )
+            self.console.print(refresh_panel)
             self.display_available_tools()
             return
 
-        self.console.print("\n[bold green]Tool list refreshed:[/bold green]")
+        refresh_text = Text.assemble(
+            (f"{STATUS_ICONS['sparkles']} Tool list refreshed!", "success bold")
+        )
+        self.console.print(Panel(refresh_text, style="success", border_style="green"))
 
         if added_tools:
-            new_tools_table = Table(title="✨ New Tools Added", show_header=True, header_style="bold green", border_style="green")
-            new_tools_table.add_column("Name", style="cyan", width=25)
-            new_tools_table.add_column("Description")
+            new_tools_table = Table(
+                title=f"{STATUS_ICONS['sparkles']} New Tools Added",
+                show_header=True,
+                header_style="bold success",
+                border_style="success"
+            )
+            new_tools_table.add_column("Name", style="tool", width=25)
+            new_tools_table.add_column("Description", style="white")
             for tool_name in sorted(list(added_tools)):
                 tool_info = next((t for t in self.tools if t['function']['name'] == tool_name), None)
                 if tool_info:
                     func_info = tool_info.get('function', {})
                     description = func_info.get('description', 'No description provided.')
-                    new_tools_table.add_row(tool_name, description.strip())
+                    new_tools_table.add_row(f"{STATUS_ICONS['gear']} {tool_name}", description.strip())
             self.console.print(new_tools_table)
-            self.console.print("\n")
+            self.console.print()
 
         self.display_available_tools()
 
@@ -252,22 +272,36 @@ class Assistant:
 
     def display_available_tools(self):
         """
-        print a simple formatted list of currently loaded tool names.
+        Display a nicely formatted list of currently loaded tool names.
         """
-        self.console.print("\n[bold cyan]Available tools:[/bold cyan]")
         if not self.tools:
-            self.console.print("  No tools available.")
-            self.console.print("\n---")
+            no_tools_panel = Panel(
+                f"{STATUS_ICONS['warning']} No tools available - check your configuration",
+                style="warning",
+                border_style="yellow"
+            )
+            self.console.print(no_tools_panel)
             return
 
-        # get just the names and sort them
+        # Get just the names and sort them
         tool_names = sorted([tool.get('function', {}).get('name', 'N/A') for tool in self.tools])
 
-        # format as a simple list
-        formatted_tools = ", ".join([f"[cyan]{name}[/cyan]" for name in tool_names])
-        self.console.print(f"  {formatted_tools}")
+        # Create a more visual display
+        tools_text = Text()
+        tools_text.append(f"{STATUS_ICONS['tool']} Available tools ({len(tool_names)}): ", style="cyan bold")
+        
+        for i, name in enumerate(tool_names):
+            if i > 0:
+                tools_text.append(" • ", style="dim")
+            tools_text.append(name, style="tool")
 
-        self.console.print("\n---")
+        tools_panel = Panel(
+            tools_text,
+            title=f"{STATUS_ICONS['dashboard']} Tool Status",
+            border_style="cyan",
+            padding=(0, 1)
+        )
+        self.console.print(tools_panel)
 
     def _display_tool_usage(self, tool_name: str, input_data: Dict, result: Any):
         """
@@ -394,7 +428,7 @@ class Assistant:
         tool_result = None
 
         try:
-            module = importlib.import_module(f'tools.{tool_name}')
+            module = importlib.import_module(f'code_route.tools.{tool_name}')
             tool_instance = self._find_tool_instance_in_module(module, tool_name)
 
             if not tool_instance:
@@ -594,7 +628,7 @@ class Assistant:
                     # execute the tool
                     try:
                         # find and execute the tool
-                        module = importlib.import_module(f'tools.{tool_name}')
+                        module = importlib.import_module(f'code_route.tools.{tool_name}')
                         tool_instance = self._find_tool_instance_in_module(module, tool_name)
 
                         if not tool_instance:
@@ -681,20 +715,28 @@ class Assistant:
 
     def reset(self):
         """
-        reset the assistant's memory and token usage.
+        Reset the assistant's memory and token usage.
         """
         self.conversation_history = []
         self.total_tokens_used = 0
-        self.console.print("\n[bold green]🔄 Assistant memory has been reset![/bold green]")
+        
+        reset_text = Text.assemble(
+            (f"{STATUS_ICONS['refresh']} Assistant memory has been reset!", "success bold")
+        )
+        reset_panel = Panel(reset_text, style="success", border_style="green")
+        self.console.print(reset_panel)
 
-        welcome_text = """
-# Code Route. A self-improving assistant framework with tool creation
+        welcome_text = f"""
+# {STATUS_ICONS['rocket']} Code Route - AI Assistant Framework
 
-Type 'refresh' to reload available tools
-Type 'reset' to clear conversation history
-Type 'models' to list available models
-Type 'model <model_name>' to switch models
-Type 'quit' to exit
+**Available Commands:**
+• `refresh` - Reload available tools
+• `reset` - Clear conversation history  
+• `models` - List available models
+• `model <name>` - Switch models
+• `quit` - Exit application
+
+**Ready to assist with tool creation and execution!**
 """
         self.console.print(Markdown(welcome_text))
         self.display_available_tools()
@@ -702,37 +744,54 @@ Type 'quit' to exit
 
 def main():
     """
-    entry point for the assistant CLI loop.
-    provides a prompt for user input and handles 'quit' and 'reset' commands.
+    Entry point for the assistant CLI loop.
+    Provides a prompt for user input and handles commands.
     """
-    console = Console()
-    style = Style.from_dict({'prompt': 'orange'})
-
+    console = get_themed_console()
+    from .themes import PROMPT_STYLE
+    
     try:
         assistant = Assistant()
     except ValueError as e:
-        console.print(f"[bold red]Error:[/bold red] {e!s}")
-        console.print("Please ensure OPENROUTER_API_KEY is set correctly.")
+        error_panel = Panel(
+            Text.assemble(
+                (f"{STATUS_ICONS['error']} Configuration Error: ", "red bold"),
+                (str(e), "red"),
+                ("\n\nPlease ensure OPENROUTER_API_KEY is set correctly.", "white")
+            ),
+            border_style="red"
+        )
+        console.print(error_panel)
         return
 
-    welcome_text = """
-# Code Route. A self-improving assistant framework with tool creation
+    # Show initial welcome
+    welcome_text = f"""
+# {STATUS_ICONS['rocket']} Code Route - AI Assistant Framework
 
-Type 'refresh' to reload available tools
-Type 'reset' to clear conversation history
-Type 'models' to list available models
-Type 'model <model_name>' to switch models
-Type 'quit' to exit
+**Available Commands:**
+• `refresh` - Reload available tools
+• `reset` - Clear conversation history  
+• `models` - List available models
+• `model <name>` - Switch models
+• `quit` - Exit application
+
+**Ready to assist with tool creation and execution!**
 """
     console.print(Markdown(welcome_text))
     assistant.display_available_tools()
 
     while True:
         try:
-            user_input = prompt("You: ", style=style).strip()
+            user_input = prompt(f"{STATUS_ICONS['user']} You: ", style=PROMPT_STYLE).strip()
+            
+            if not user_input:
+                continue
 
             if user_input.lower() == 'quit':
-                console.print("\n[bold blue]👋 Goodbye![/bold blue]")
+                goodbye_text = Text.assemble(
+                    (f"{STATUS_ICONS['heart']} Goodbye! Thanks for using Code Route!", "primary bold")
+                )
+                console.print(Panel(goodbye_text, style="primary", border_style="blue"))
                 break
             elif user_input.lower() == 'reset':
                 assistant.reset()
@@ -760,10 +819,24 @@ Type 'quit' to exit
                 continue
 
             response = assistant.chat(user_input)
-            console.print("\n[bold purple]Code Route:[/bold purple]")
+            
+            # Display the response with nice formatting
+            try:
+                response_text = Text()
+                response_text.append(f"{STATUS_ICONS['assistant']} ", style="bright_magenta")
+                response_text.append("Code Route:", style="bright_magenta bold")
+                console.print(response_text)
+            except Exception as style_error:
+                console.print(f"[red]Style error: {style_error}[/red]")
+                console.print("🤖 Code Route:")
             if isinstance(response, str):
-                safe_response = response.replace('[', '\\[').replace(']', '\\]')
-                console.print(safe_response)
+                # Handle rich markup in responses
+                try:
+                    console.print(Markdown(response))
+                except Exception:
+                    # Fallback to safe printing
+                    safe_response = response.replace('[', '\\[').replace(']', '\\]')
+                    console.print(safe_response)
             else:
                 console.print(str(response))
 

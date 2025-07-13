@@ -1,6 +1,6 @@
 import subprocess
 
-from tools.base import BaseTool
+from .base import BaseTool
 
 
 class LintingTool(BaseTool):
