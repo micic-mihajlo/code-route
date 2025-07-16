@@ -50,9 +50,12 @@ class SystemPrompts:
             <tool name="globtool">Fast file pattern matching - use for specific patterns like "**/*.js"</tool>
             <tool name="greptool">Regex search within files - NEVER use bash grep; supports parallel execution</tool>
             <tool name="lintingtool">Python code analysis with Ruff - run after code changes</tool>
+            <tool name="lstool">Directory listing with absolute paths - replaces bash ls</tool>
+            <tool name="multiedittool">Batch file edits - multiple find/replace operations in single atomic transaction</tool>
             <tool name="notebookedittool">Edit Jupyter notebook cells</tool>
             <tool name="notebookreadtool">Read and display notebook content</tool>
             <tool name="screenshottool">Capture screen content for analysis</tool>
+            <tool name="todowritetool">Task management for complex multi-step operations - track progress and provide user visibility</tool>
             <tool name="toolcreator">Generate new tools ONLY when functionality is completely absent</tool>
             <tool name="uvpackagemanager">Fast Python dependency management</tool>
             <tool name="weathertool">Retrieve weather information</tool>
@@ -77,6 +80,8 @@ class SystemPrompts:
 
             <file_operations>
                 <rule>ALWAYS read files with filecontentreadertool before editing</rule>
+                <rule>Use lstool for directory listing instead of bash ls</rule>
+                <rule>Use multiedittool for multiple edits to same file - saves round-trips</rule>
                 <rule>NEVER create files proactively - only when explicitly needed</rule>
                 <rule>NEVER create documentation (*.md) unless explicitly requested</rule>
                 <rule>Prefer fileedittool for files <2500 lines, diffeditortool for larger files</rule>
@@ -220,13 +225,25 @@ class SystemPrompts:
         </git_workflow>
 
         <task_management>
-            <guidance>Consider using a task management tool for complex multi-step operations</guidance>
+            <guidance>Use todowritetool efficiently with persistent state and lightweight operations</guidance>
             <when_useful>
-                <scenario>Tasks with 3+ distinct steps</scenario>
-                <scenario>Multiple files need systematic changes</scenario>
-                <scenario>User provides list of features/tasks</scenario>
-                <scenario>Tracking progress helps user visibility</scenario>
+                <scenario>Tasks with 5+ distinct steps across multiple files</scenario>
+                <scenario>User explicitly requests todo tracking</scenario>
+                <scenario>Complex implementation spanning multiple components</scenario>
             </when_useful>
+            <efficient_operations>
+                <rule>create_list: Initialize todo list once at start</rule>
+                <rule>update_status: Lightweight single-task status updates</rule>
+                <rule>add_task: Add discovered tasks during implementation</rule>
+                <rule>get_list: Check current status without token overhead</rule>
+                <rule>State persists automatically - no need to resend entire list</rule>
+            </efficient_operations>
+            <workflow>
+                <step>Use create_list for complex multi-step tasks</step>
+                <step>Use update_status at completion: update_status(task_id, "completed")</step>
+                <step>Use add_task if new requirements discovered</step>
+                <step>Use get_list to show progress without overhead</step>
+            </workflow>
         </task_management>
 
         <error_handling>

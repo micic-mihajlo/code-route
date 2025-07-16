@@ -1,0 +1,50 @@
+{
+  "check-status": {
+    "id": "check-status",
+    "content": "Check git status to see what files have been modified",
+    "status": "completed",
+    "priority": "high"
+  },
+  "review-changes": {
+    "id": "review-changes",
+    "content": "Review changes using git diff to ensure all modifications are intentional",
+    "status": "completed",
+    "priority": "high"
+  },
+  "stage-files": {
+    "id": "stage-files",
+    "content": "Stage files for commit using git add (specific files or git add .)",
+    "status": "pending",
+    "priority": "high"
+  },
+  "commit-changes": {
+    "id": "commit-changes",
+    "content": "Commit changes with a clear, descriptive commit message",
+    "status": "pending",
+    "priority": "high"
+  },
+  "pull-latest": {
+    "id": "pull-latest",
+    "content": "Pull latest changes from remote to avoid conflicts (git pull)",
+    "status": "completed",
+    "priority": "medium"
+  },
+  "resolve-conflicts": {
+    "id": "resolve-conflicts",
+    "content": "Resolve any merge conflicts if they occur during pull",
+    "status": "pending",
+    "priority": "medium"
+  },
+  "push-changes": {
+    "id": "push-changes",
+    "content": "Push changes to remote repository (git push)",
+    "status": "pending",
+    "priority": "high"
+  },
+  "verify-push": {
+    "id": "verify-push",
+    "content": "Verify push was successful by checking remote repository",
+    "status": "pending",
+    "priority": "low"
+  }
+}
