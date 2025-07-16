@@ -22,7 +22,7 @@ class Config:
     }
     
     # Default model
-    MODEL = os.getenv('MODEL', "openai/gpt-4.1-mini")
+    MODEL = os.getenv('MODEL', "moonshotai/kimi-k2")
     MAX_TOKENS = 8000
     MAX_CONVERSATION_TOKENS = 200000000  # max tokens per convo
 
