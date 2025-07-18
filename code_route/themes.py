@@ -53,6 +53,7 @@ STATUS_ICONS = {
     'error': '❌',
     'warning': '⚠️',
     'info': 'ℹ️',
+    'help': '❓',
     'loading': '⏳',
     'tool': '🔧',
     'file': '📄',
