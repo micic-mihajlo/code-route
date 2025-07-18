@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
+
 """
 Code Route CLI - Global command line interface
+
+This module provides the main CLI entry point for Code Route,
+handling initialization, configuration, and launching the assistant.
 """
 
 import argparse
 import os
 import sys
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from typing import Optional
 
 from rich.console import Console
@@ -118,13 +122,11 @@ def show_tools():
         tools_table.add_column("Tool Name", style="bright_yellow", width=25)
         tools_table.add_column("Description", style="white")
         
-        # Group tools by category if possible
         for tool in sorted(assistant.tools, key=lambda x: x.get('function', {}).get('name', '')):
             func_info = tool.get('function', {})
             name = func_info.get('name', 'Unknown')
             desc = func_info.get('description', 'No description available')
             
-            # Truncate long descriptions
             if len(desc) > 80:
                 desc = desc[:77] + "..."
             
@@ -182,7 +184,6 @@ def show_status():
     status_table.add_column("Status", style="white", width=15)
     status_table.add_column("Details", style="dim white")
     
-    # Check API key
     api_key = getattr(Config, 'OPENROUTER_API_KEY', None)
     if api_key:
         api_status = f"{STATUS_ICONS['success']} Configured"
@@ -192,7 +193,6 @@ def show_status():
         api_details = "Required for operation"
     status_table.add_row("OpenRouter API", api_status, api_details)
     
-    # Check E2B
     e2b_key = getattr(Config, 'E2B_API_KEY', None)
     if e2b_key:
         e2b_status = f"{STATUS_ICONS['success']} Configured"
@@ -202,7 +202,6 @@ def show_status():
         e2b_details = "For secure code execution"
     status_table.add_row("E2B API", e2b_status, e2b_details)
     
-    # Check tools
     try:
         assistant = Assistant()
         tool_count = len(assistant.tools)
@@ -213,7 +212,6 @@ def show_status():
         tools_details = str(e)[:50] + "..." if len(str(e)) > 50 else str(e)
     status_table.add_row("Tools", tools_status, tools_details)
     
-    # Check directory
     cwd = Path.cwd()
     env_exists = (cwd / ".env").exists()
     dir_status = f"{STATUS_ICONS['success']} Ready" if env_exists else f"{STATUS_ICONS['warning']} No .env"
@@ -247,7 +245,6 @@ Examples:
     
     args = parser.parse_args()
     
-    # Handle special commands that don't need API key
     if args.init:
         init_project()
         return
@@ -259,7 +256,6 @@ Examples:
     if not args.no_banner:
         show_banner()
     
-    # Commands that need API key
     if args.tools:
         if not check_config():
             sys.exit(1)
@@ -272,12 +268,10 @@ Examples:
         launch_web()
         return
     
-    # Default: Start interactive CLI
     if not check_config():
         console.print("\n💡 Use 'code-route --init' to set up a new project")
         sys.exit(1)
     
-    # Import and start the interactive assistant
     try:
         from .assistant import main as assistant_main
         assistant_main()
