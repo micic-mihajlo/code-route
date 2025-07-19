@@ -1,5 +1,4 @@
-# cr.py
-# import anthropic
+# main assistant module
 import importlib
 import inspect
 import json
@@ -11,11 +10,14 @@ from typing import Any, Dict, List
 from openai import OpenAI
 from prompt_toolkit import prompt
 from prompt_toolkit.styles import Style
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.shortcuts import CompleteStyle
+import threading
+import time
 from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.progress import BarColumn, Progress, TextColumn
 from rich.spinner import Spinner
 from rich.syntax import Syntax
 from rich.table import Table
@@ -27,27 +29,20 @@ from .prompts.system_prompts import SystemPrompts
 from .tools.base import BaseTool
 from .themes import get_themed_console, STATUS_ICONS
 
-# Configure logging to only show ERROR level and above
+# configure logging to error level only
 logging.basicConfig(
     level=logging.ERROR,
     format='%(levelname)s: %(message)s'
 )
 
 class Assistant:
-    """
-    The Assistant class manages:
-    - Loading of tools from a specified directory.
-    - Interaction with the OpenRouter API (message completion).
-    - Handling user commands such as 'refresh' and 'reset'.
-    - Token usage tracking and display.
-    - Tool execution upon request from model responses.
-    """
+    """main assistant class for code route"""
 
     def __init__(self):
         if not getattr(Config, 'OPENROUTER_API_KEY', None):
             raise ValueError("No OPENROUTER_API_KEY found in environment variables")
 
-        # Initialize OpenRouter client using OpenAI client
+        # initialize openrouter client
         self.client = OpenAI(
             api_key=Config.OPENROUTER_API_KEY,
             base_url="https://openrouter.ai/api/v1"
@@ -64,9 +59,7 @@ class Assistant:
         self.tools = self._load_tools()
 
     def export_conversation(self, filename: str):
-        """
-        Exports the current conversation history to a JSON file.
-        """
+        """export conversation to json file"""
         try:
             conversation_json = json.dumps(self.conversation_history, indent=2)
             with open(filename, 'w') as f:
@@ -74,7 +67,7 @@ class Assistant:
             self.console.print(f"[green]Conversation exported successfully to {filename}[/green]")
         except OSError as e:
             self.console.print(f"[red]Error exporting conversation to {filename}: {e}[/red]")
-        except Exception as e: # Catch any other unexpected errors during export
+        except Exception as e:
             self.console.print(f"[red]An unexpected error occurred during export to {filename}: {e}[/red]")
 
     def _execute_uv_install(self, package_name: str) -> bool:
@@ -168,9 +161,8 @@ class Assistant:
         if "No module named" in error_str:
             parts = error_str.split("No module named")
             missing_module = parts[-1].strip(" '\"")
-            # Remove any single quotes around the module name
             missing_module = missing_module.strip("'\"")
-            # If it's a submodule, get the main package
+            # if it's a submodule, get the main package
             if "." in missing_module:
                 missing_module = missing_module.split(".")[0]
         else:
@@ -283,10 +275,10 @@ class Assistant:
             self.console.print(no_tools_panel)
             return
 
-        # Get just the names and sort them
+        # get tool names and sort them
         tool_names = sorted([tool.get('function', {}).get('name', 'N/A') for tool in self.tools])
 
-        # Create a more visual display
+        # create visual display
         tools_text = Text()
         tools_text.append(f"{STATUS_ICONS['tool']} Available tools ({len(tool_names)}): ", style="cyan bold")
         
@@ -303,77 +295,140 @@ class Assistant:
         )
         self.console.print(tools_panel)
 
+    def _display_tool_execution_start(self, tool_name: str, tool_args: Dict):
+        """Display clean, compact tool execution start"""
+        # compact tool display
+        tool_text = Text()
+        tool_text.append("🔧 ", style="cyan")
+        tool_text.append(f"{tool_name}", style="cyan bold")
+        
+        # show essential arguments only
+        if tool_args:
+            essential_args = self._get_essential_args_display(tool_args)
+            if essential_args:
+                tool_text.append(f" {essential_args}", style="dim cyan")
+        
+        self.console.print(tool_text)
+    
+    def _get_essential_args_display(self, args: Dict) -> str:
+        """Extract and format only the most essential arguments for display"""
+        if not args:
+            return ""
+        
+        # essential argument keys
+        essential_keys = ['path', 'file_path', 'command', 'query', 'url', 'filename', 'message', 'content']
+        
+        essential_parts = []
+        for key in essential_keys:
+            if key in args:
+                value = str(args[key])
+                if len(value) > 50:
+                    value = value[:47] + "..."
+                essential_parts.append(f"{key}={value}")
+        
+        # fallback to first key if no essential args
+        if not essential_parts and args:
+            first_key = next(iter(args))
+            value = str(args[first_key])
+            if len(value) > 50:
+                value = value[:47] + "..."
+            essential_parts.append(f"{first_key}={value}")
+        
+        return f"({', '.join(essential_parts)})" if essential_parts else ""
+    
+    def _display_tool_result(self, tool_name: str, result: Any, execution_time: float = None):
+        """Display tool execution result in a clean, compact format"""
+        result_text = Text()
+        
+        # check if this is an error - proper error detection
+        is_error = False
+        if isinstance(result, str):
+            # if it's valid JSON, it's likely a successful structured response
+            try:
+                json.loads(result)
+                is_error = False  # structured data = success
+            except (json.JSONDecodeError, TypeError):
+                # not JSON, check if it's an error message
+                is_error = result.startswith("Error:")
+        elif isinstance(result, dict) and "error" in result:
+            # dictionary with explicit error key
+            is_error = True
+        
+        if is_error:
+            result_text.append("❌ ", style="red")
+            result_text.append(f"{tool_name} failed", style="red")
+        else:
+            result_text.append("✅ ", style="green") 
+            result_text.append(f"{tool_name}", style="green")
+            if execution_time:
+                result_text.append(f" ({execution_time:.2f}s)", style="dim green")
+        
+        self.console.print(result_text)
+        
+        # show informative result content
+        if result and not is_error:
+            result_preview = self._get_result_preview(result)
+            if result_preview:
+                self.console.print(f"  {result_preview}", style="dim white")
+    
+    def _get_result_preview(self, result: Any) -> str:
+        """Get a concise preview of the result for display"""
+        if isinstance(result, str):
+            if len(result.strip()) == 0:
+                return ""
+            # first line only, truncated if needed
+            first_line = result.strip().split('\n')[0]
+            if len(first_line) > 100:
+                return first_line[:97] + "..."
+            return first_line
+        elif isinstance(result, (dict, list)):
+            try:
+                result_str = json.dumps(result, indent=None)
+                if len(result_str) > 100:
+                    return result_str[:97] + "..."
+                return result_str
+            except (TypeError, ValueError):
+                return str(result)[:100]
+        else:
+            result_str = str(result)
+            if len(result_str) > 100:
+                return result_str[:97] + "..."
+            return result_str
+
     def _display_tool_usage(self, tool_name: str, input_data: Dict, result: Any):
         """
-        if SHOW_TOOL_USAGE is enabled, display the input and result of a tool execution
-        using rich.tree.Tree for better structure and highlighting.
-        handles special cases like image data and large outputs for cleaner display.
+        Legacy method maintained for backwards compatibility.
+        New clean display is handled by _display_tool_execution_start and _display_tool_result
         """
-        if not getattr(Config, 'SHOW_TOOL_USAGE', False):
-            return
-
-        # determine status and set styles
+        # legacy method for detailed tool info
+        if getattr(Config, 'SHOW_TOOL_USAGE', False):
+            self._display_detailed_tool_info(tool_name, input_data, result)
+    
+    def _display_detailed_tool_info(self, tool_name: str, input_data: Dict, result: Any):
+        """Display detailed tool information when SHOW_TOOL_USAGE is enabled"""
         is_error = isinstance(result, str) and result.startswith("Error")
         status_icon = "❌" if is_error else "✅"
-        panel_title = f"{status_icon} Tool {'Error' if is_error else 'Executed'}: {tool_name}"
-        panel_border_style = "red" if is_error else "green"
-
-        # clean up input and result data
-        cleaned_input = self._clean_data_for_display(input_data)
+        
+        # compact details panel
+        details = f"**Tool:** {tool_name}\n"
+        details += f"**Status:** {'Error' if is_error else 'Success'}\n"
+        
+        if input_data:
+            cleaned_input = self._clean_data_for_display(input_data)
+            details += f"**Input:** {json.dumps(cleaned_input, indent=None)[:200]}...\n"
+        
         cleaned_result = self._clean_data_for_display(result)
-
-        # create the main tree for the tool call
-        tree = Tree(
-            label="",
-            guide_style="dim",
-        )
-
-        # add input node
-        input_node = tree.add("📥 [yellow]Input:[/yellow]")
-        # format input as JSON with syntax highlighting
-        try:
-            input_json_str = json.dumps(cleaned_input, indent=2)
-            input_syntax = Syntax(input_json_str, "json", theme="default", line_numbers=False)
-            input_node.add(input_syntax)
-        except TypeError: # handle cases where input might not be JSON serializable after cleaning
-             input_node.add(str(cleaned_input))
-
-        # add result node
-        output_node = tree.add("📤 [green]Result:[/green]")
-        # format result (check if it's already string or needs JSON dump)
-        if isinstance(cleaned_result, str):
-            # if it looks like JSON, try highlighting
-            if cleaned_result.strip().startswith(("{", "[")):
-                 try:
-                     # validate and reformat for consistent indentation
-                     parsed_json = json.loads(cleaned_result)
-                     result_json_str = json.dumps(parsed_json, indent=2)
-                     result_syntax = Syntax(result_json_str, "json", theme="default", line_numbers=False)
-                     output_node.add(result_syntax)
-                 except json.JSONDecodeError:
-                     output_node.add(cleaned_result) # add as plain text if not valid JSON
-            else:
-                 output_node.add(cleaned_result) # add as plain text
-        else:
-             # assume it's dict/list, format as JSON
-             try:
-                 result_json_str = json.dumps(cleaned_result, indent=2)
-                 result_syntax = Syntax(result_json_str, "json", theme="default", line_numbers=False)
-                 output_node.add(result_syntax)
-             except TypeError: # Fallback if not serializable
-                 output_node.add(str(cleaned_result))
-
-        # wrap the tree in a Panel
+        result_preview = str(cleaned_result)[:300] + ("..." if len(str(cleaned_result)) > 300 else "")
+        details += f"**Result:** {result_preview}"
+        
         panel = Panel(
-            tree,
-            title=panel_title,
-            border_style=panel_border_style,
+            Markdown(details),
+            title=f"{status_icon} Tool Details",
+            border_style="red" if is_error else "green",
             title_align="left",
-            padding=(1, 1)
+            padding=(0, 1)
         )
-
         self.console.print(panel)
-        self.console.print("---")
 
     def _clean_data_for_display(self, data):
         """
@@ -425,6 +480,10 @@ class Assistant:
         """
         tool_name = tool_use.name
         tool_input = tool_use.input or {}
+        
+        self._display_tool_execution_start(tool_name, tool_input)
+        
+        start_time = time.time()
         tool_result = None
 
         try:
@@ -432,22 +491,24 @@ class Assistant:
             tool_instance = self._find_tool_instance_in_module(module, tool_name)
 
             if not tool_instance:
-                tool_result = f"Tool not found: {tool_name}"
+                tool_result = f"Error: Tool not found: {tool_name}"
             else:
                 # execute the tool with the provided input
                 try:
                     result = tool_instance.execute(**tool_input)
-                    # keep structured data intact for display function
                     tool_result = result
                 except Exception as exec_err:
                     tool_result = f"Error executing tool '{tool_name}': {exec_err!s}"
         except ImportError:
-            tool_result = f"Failed to import tool: {tool_name}"
+            tool_result = f"Error: Failed to import tool: {tool_name}"
         except Exception as e:
             tool_result = f"Error executing tool: {e!s}"
 
-        # display tool usage with proper handling of structured data
+        execution_time = time.time() - start_time
+        
+        self._display_tool_result(tool_name, tool_result, execution_time)
         self._display_tool_usage(tool_name, tool_input, tool_result)
+        
         return tool_result
 
     def _find_tool_instance_in_module(self, module, tool_name: str):
@@ -479,33 +540,29 @@ class Assistant:
         used_percentage = (new_total / max_tokens) * 100
         remaining_tokens = max(0, max_tokens - new_total)
 
-        # setup progress display
-        progress = Progress(
-            TextColumn("[bold blue]Tokens:[/]"),
-            BarColumn(bar_width=40),
-            TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
-            TextColumn("|"),
-            TextColumn("[green]{task.completed:,}[/] / [dim]{task.total:,}[/]"),
-            TextColumn(f"(Current: P:{prompt_tokens:,} + C:{completion_tokens:,} = {current_call_tokens:,})")
-
-        )
-
-        # add task to progress bar
-        progress.add_task("Conversation Progress", total=max_tokens, completed=new_total)
-
-        self.console.print("\nToken Usage:")
-        self.console.print(progress)
-
-        # update the color based on percentage
+        # simple token display
         color = "green"
         if used_percentage > 75:
             color = "yellow"
         if used_percentage > 90:
             color = "red"
 
-        # update the progress bar style AFTER adding the task
-        progress.columns[1].style = color # BarColumn style
+        # text-based progress bar
+        bar_length = 40
+        filled_length = int(bar_length * used_percentage / 100)
+        bar = "█" * filled_length + "░" * (bar_length - filled_length)
+        
+        token_text = Text()
+        token_text.append("Tokens: ", style="bold blue")
+        token_text.append(bar, style=color)
+        token_text.append(f" {used_percentage:.1f}% | ", style=color)
+        token_text.append(f"{new_total:,}", style="green")
+        token_text.append(" / ", style="dim")
+        token_text.append(f"{max_tokens:,}", style="dim")
+        token_text.append(f" (Current: P:{prompt_tokens:,} + C:{completion_tokens:,} = {current_call_tokens:,})", style="dim")
 
+        self.console.print("Token Usage:")
+        self.console.print(token_text)
 
         # print warning if remaining tokens are low
         if remaining_tokens < 20000:
@@ -609,35 +666,30 @@ class Assistant:
                     tool_name = tool_call.function.name
                     tool_args = json.loads(tool_call.function.arguments)
 
-                    # print the specific tool being handled
-                    self.console.print(f"\n[bold yellow]  Handling Tool: {tool_name}...[/bold yellow]\n")
-
-                    # display tool arguments before execution
-                    try:
-                        input_json_str = json.dumps(tool_args, indent=2)
-                        # add background_color="default" to use terminal background
-                        input_syntax = Syntax(input_json_str, "json", theme="default", line_numbers=False, background_color="default")
-                        self.console.print("[yellow]  Arguments:[/yellow]")
-                        self.console.print(input_syntax)
-                        self.console.print("---") # separator after args
-                    except TypeError:
-                        self.console.print(f"[yellow]  Arguments:[/yellow] {tool_args!s}")
-                        self.console.print("---")
+                    # Clean, compact tool execution display
+                    self._display_tool_execution_start(tool_name, tool_args)
 
 
-                    # execute the tool
+                    # execute the tool with timing
+                    start_time = time.time()
+                    
                     try:
                         # find and execute the tool
                         module = importlib.import_module(f'code_route.tools.{tool_name}')
                         tool_instance = self._find_tool_instance_in_module(module, tool_name)
 
                         if not tool_instance:
-                            result = f"Tool not found: {tool_name}"
+                            result = f"Error: Tool not found: {tool_name}"
                         else:
                             # execute the tool with the provided input
                             result = tool_instance.execute(**tool_args)
                     except Exception as e:
                         result = f"Error executing tool '{tool_name}': {e!s}"
+                    
+                    execution_time = time.time() - start_time
+                    
+                    # Display clean result
+                    self._display_tool_result(tool_name, result, execution_time)
 
                     # add the tool result to the conversation
                     tool_results.append({
@@ -676,9 +728,13 @@ class Assistant:
         process a chat message from the user.
         user_input can be either a string (text-only) or a list (multimodal message)
         """
-        # handle special commands only for text-only messages
+        # handle special commands and slash commands for text-only messages
         if isinstance(user_input, str):
-            if user_input.lower() == 'refresh':
+            # Handle slash commands
+            if user_input.startswith('/'):
+                return self._handle_slash_command(user_input)
+            # Handle legacy commands (for backwards compatibility)
+            elif user_input.lower() == 'refresh':
                 self.refresh_tools()
                 return "Tools refreshed successfully!"
             elif user_input.lower() == 'reset':
@@ -713,6 +769,72 @@ class Assistant:
             logging.error(f"Error in chat: {e!s}")
             return f"Error: {e!s}"
 
+    def show_help(self):
+        """Show available slash commands"""
+        help_table = Table(
+            title=f"{STATUS_ICONS['help']} Available Commands",
+            show_header=True,
+            header_style="bold cyan",
+            border_style="cyan"
+        )
+        help_table.add_column("Command", style="bright_yellow", width=20)
+        help_table.add_column("Description", style="white")
+        
+        commands = [
+            ("/help", "Show this help message"),
+            ("/refresh", "Reload available tools"),
+            ("/reset", "Clear conversation history"),
+            ("/models", "List available models"),
+            ("/model <name>", "Switch to a different model"),
+            ("/tools", "Display available tools"),
+            ("/export <file>", "Export conversation to file"),
+            ("/quit", "Exit the application")
+        ]
+        
+        for cmd, desc in commands:
+            help_table.add_row(cmd, desc)
+            
+        self.console.print(help_table)
+    
+    def _handle_slash_command(self, command: str) -> str:
+        """Handle slash commands"""
+        # remove leading '/' and split
+        cmd_parts = command[1:].strip().split(maxsplit=1)
+        if not cmd_parts:
+            return "Invalid command. Type /help for available commands."
+        
+        cmd = cmd_parts[0].lower()
+        args = cmd_parts[1] if len(cmd_parts) > 1 else ""
+        
+        if cmd == 'help':
+            self.show_help()
+            return "Command help displayed above."
+        elif cmd == 'refresh':
+            self.refresh_tools()
+            return "Tools refreshed successfully!"
+        elif cmd == 'reset':
+            self.reset()
+            return "Conversation reset!"
+        elif cmd == 'models':
+            return self.list_models()
+        elif cmd == 'model':
+            if not args:
+                return "Please specify a model name. Usage: /model <name>"
+            return self.set_model(args.strip())
+        elif cmd == 'tools':
+            self.display_available_tools()
+            return "Available tools displayed above."
+        elif cmd == 'export':
+            if not args:
+                return "Please specify a filename. Usage: /export <filename>"
+            filename = args.strip()
+            self.export_conversation(filename)
+            return f"Conversation exported to {filename}"
+        elif cmd == 'quit':
+            return "Goodbye!"
+        else:
+            return f"Unknown command: /{cmd}. Type /help for available commands."
+
     def reset(self):
         """
         Reset the assistant's memory and token usage.
@@ -730,16 +852,59 @@ class Assistant:
 # {STATUS_ICONS['rocket']} Code Route - AI Assistant Framework
 
 **Available Commands:**
-• `refresh` - Reload available tools
-• `reset` - Clear conversation history  
-• `models` - List available models
-• `model <name>` - Switch models
-• `quit` - Exit application
+• Type `/help` to see all available slash commands
+• Use `/` followed by a command name for quick access
+• Commands are auto-completed as you type
 
 **Ready to assist with tool creation and execution!**
 """
         self.console.print(Markdown(welcome_text))
         self.display_available_tools()
+
+
+class SlashCommandCompleter(Completer):
+    """Custom completer for slash commands with debounced suggestions"""
+    
+    def __init__(self, assistant):
+        self.assistant = assistant
+        self.commands = [
+            'help', 'refresh', 'reset', 'models', 'model', 'tools', 'export', 'quit'
+        ]
+        self.debounce_timer = None
+        self.debounce_delay = 0.3  # 300ms debounce
+        self.last_suggestions = []
+    
+    def get_completions(self, document, complete_event):
+        """Get completions for slash commands"""
+        text = document.text
+        
+        if not text.startswith('/'):
+            return
+        
+        cmd_text = text[1:]
+        matching_commands = [cmd for cmd in self.commands if cmd.startswith(cmd_text.lower())]
+        
+        for cmd in matching_commands:
+            if cmd_text == '' or cmd.startswith(cmd_text.lower()):
+                yield Completion(
+                    cmd,
+                    start_position=-len(cmd_text),
+                    display=f"/{cmd}"
+                )
+    
+    def _show_command_help(self, partial_command):
+        """Show contextual help for commands as user types (debounced)"""
+        if self.debounce_timer:
+            self.debounce_timer.cancel()
+        self.debounce_timer = threading.Timer(
+            self.debounce_delay, 
+            self._display_help_for_partial, 
+            [partial_command]
+        )
+    
+    def _display_help_for_partial(self, partial_command):
+        """placeholder for future enhancements"""
+        pass
 
 
 def main():
@@ -764,7 +929,6 @@ def main():
         console.print(error_panel)
         return
 
-    # Show initial welcome
     welcome_text = f"""
 # {STATUS_ICONS['rocket']} Code Route - AI Assistant Framework
 
@@ -780,47 +944,49 @@ def main():
     console.print(Markdown(welcome_text))
     assistant.display_available_tools()
 
+    completer = SlashCommandCompleter(assistant)
+
     while True:
         try:
-            user_input = prompt(f"{STATUS_ICONS['user']} You: ", style=PROMPT_STYLE).strip()
+            user_input = prompt(
+                f"{STATUS_ICONS['user']} You: ", 
+                style=PROMPT_STYLE,
+                completer=completer,
+                complete_style=CompleteStyle.MULTI_COLUMN
+            ).strip()
             
             if not user_input:
                 continue
 
-            if user_input.lower() == 'quit':
-                goodbye_text = Text.assemble(
-                    (f"{STATUS_ICONS['heart']} Goodbye! Thanks for using Code Route!", "primary bold")
-                )
-                console.print(Panel(goodbye_text, style="primary", border_style="blue"))
-                break
-            elif user_input.lower() == 'reset':
-                assistant.reset()
-                continue
-            elif user_input.lower().startswith('export '):
-                parts = user_input.split(maxsplit=1)
-                if len(parts) < 2 or not parts[1].strip():
-                    console.print("[bold red]Export command requires a filename. Usage: export <filename>[/bold red]")
-                else:
-                    filename = parts[1].strip()
-                    # Assuming assistant.export_conversation(filename) will be implemented
-                    # For now, let's simulate the call and success
-                    try:
-                        # Placeholder for actual export logic:
-                        # assistant.export_conversation(filename)
-                        # This is where the actual method call will go.
-                        # For this step, we'll just print a message as if it worked.
-                        # In a future step, we'll implement assistant.export_conversation.
-                        with open(filename, 'w') as f:
-                            # Simulate writing some conversation data for testing purposes
-                            f.write(json.dumps(assistant.conversation_history, indent=2))
-                        console.print(f"\n[bold green]Conversation exported to {filename}[/bold green]")
-                    except Exception as e:
-                        console.print(f"\n[bold red]Error exporting conversation: {e!s}[/bold red]")
-                continue
+            if user_input.startswith('/') or user_input.lower() in ['quit', 'reset']:
+                if user_input.lower() == 'quit' or user_input == '/quit':
+                    goodbye_text = Text.assemble(
+                        (f"{STATUS_ICONS['heart']} Goodbye! Thanks for using Code Route!", "primary bold")
+                    )
+                    console.print(Panel(goodbye_text, style="primary", border_style="blue"))
+                    break
+                elif user_input.lower() == 'reset' or user_input == '/reset':
+                    assistant.reset()
+                    continue
+                elif user_input.lower().startswith('export ') or user_input.startswith('/export '):
+                    if user_input.startswith('/export '):
+                        parts = user_input[8:].strip()
+                    else:
+                        parts = user_input.split(maxsplit=1)
+                        parts = parts[1] if len(parts) > 1 else ""
+                    
+                    if not parts.strip():
+                        console.print("[bold red]Export command requires a filename. Usage: /export <filename>[/bold red]")
+                    else:
+                        filename = parts.strip()
+                        try:
+                            assistant.export_conversation(filename)
+                        except Exception as e:
+                            console.print(f"\n[bold red]Error exporting conversation: {e!s}[/bold red]")
+                    continue
 
             response = assistant.chat(user_input)
             
-            # Display the response with nice formatting
             try:
                 response_text = Text()
                 response_text.append(f"{STATUS_ICONS['assistant']} ", style="bright_magenta")
@@ -830,11 +996,10 @@ def main():
                 console.print(f"[red]Style error: {style_error}[/red]")
                 console.print("🤖 Code Route:")
             if isinstance(response, str):
-                # Handle rich markup in responses
                 try:
                     console.print(Markdown(response))
                 except Exception:
-                    # Fallback to safe printing
+                    # fallback to safe printing
                     safe_response = response.replace('[', '\\[').replace(']', '\\]')
                     console.print(safe_response)
             else:
