@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 """
-Code Route CLI - Global command line interface
+code route cli - global command line interface
 
-This module provides the main CLI entry point for Code Route,
+this module provides the main cli entry point for code route,
 handling initialization, configuration, and launching the assistant.
 """
 
@@ -31,7 +31,7 @@ console = get_themed_console()
 
 
 def show_banner():
-    """Display the Code Route banner"""
+    """display the code route banner"""
     title_text = Text()
     title_text.append("🛤️  ", style="bright_yellow")
     title_text.append("CODE ROUTE", style="bright_blue bold")
@@ -58,7 +58,7 @@ def show_banner():
 
 
 def check_config():
-    """Check if the configuration is properly set up"""
+    """check if the configuration is properly set up"""
     if not getattr(Config, 'OPENROUTER_API_KEY', None):
         error_panel = Panel(
             Text.assemble(
@@ -80,7 +80,7 @@ def check_config():
 
 
 def init_project():
-    """Initialize Code Route in the current directory"""
+    """initialize code route in the current directory"""
     cwd = Path.cwd()
     env_file = cwd / ".env"
     
@@ -92,9 +92,9 @@ def init_project():
     else:
         init_steps.append(f"{STATUS_ICONS['file']} Creating .env file...")
         with open(env_file, "w") as f:
-            f.write("# Code Route Configuration\n")
+            f.write("")
             f.write("OPENROUTER_API_KEY=your_api_key_here\n")
-            f.write("# E2B_API_KEY=your_e2b_key_here  # Optional for secure code execution\n")
+            f.write("")
         
         init_steps.append(f"{STATUS_ICONS['success']} Created {env_file}")
         init_steps.append(f"{STATUS_ICONS['warning']} Please edit .env and add your OpenRouter API key")
@@ -110,7 +110,7 @@ def init_project():
 
 
 def show_tools():
-    """Show available tools"""
+    """show available tools"""
     try:
         assistant = Assistant()
         tools_table = Table(
@@ -147,7 +147,7 @@ def show_tools():
 
 
 def launch_web():
-    """Launch the web interface"""
+    """launch the web interface"""
     launch_text = Text.assemble(
         (f"{STATUS_ICONS['web']} Launching Code Route Web Interface...", "bright_cyan"),
     )
@@ -173,7 +173,7 @@ def launch_web():
 
 
 def show_status():
-    """Show system status"""
+    """show system status"""
     status_table = Table(
         title=f"{STATUS_ICONS['dashboard']} Code Route System Status",
         show_header=True,
@@ -222,7 +222,7 @@ def show_status():
 
 
 def main():
-    """Main CLI entry point"""
+    """main cli entry point"""
     parser = argparse.ArgumentParser(
         description="Code Route - AI Assistant with Tool Creation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
