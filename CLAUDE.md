@@ -1,12 +1,20 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with the Code Route project.
 
 ## Development Commands
 
 ### Running the Application
-- **CLI Interface**: `uv run cr.py` - Interactive command-line interface with rich text formatting
-- **Web Interface**: `uv run app.py` - Streamlit-based web UI with image upload capabilities
+- **CLI Interface**: `code-route` or `cr` - Global CLI command for interactive assistant
+- **Web Interface**: `code-route --web` - Launch Streamlit-based web UI with image upload capabilities
+- **Direct Python**: `uv run code_route/cli.py` - Run from source
+
+### CLI Usage
+- **Initialize project**: `code-route --init` - Set up .env file in current directory
+- **Show tools**: `code-route --tools` - List all available tools
+- **System status**: `code-route --status` - Check configuration and system health
+- **Web interface**: `code-route --web` - Launch Streamlit interface
+- **Version info**: `code-route --version`
 
 ### Package Management
 - **Install dependencies**: `uv install` or `uv sync`
@@ -14,9 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Remove dependency**: `uv remove <package_name>`
 
 ### Code Quality
-- **Linting**: Use the built-in `LintingTool` or `ruff check .`
+- **Linting**: `ruff check .` (configured in pyproject.toml)
 - **Formatting**: `ruff format .` (configured in pyproject.toml)
-- **Type checking**: `mypy .` (optional-dependencies in pyproject.toml)
+- **Type checking**: `mypy .` (optional dev dependency)
 
 ### Testing
 - **Run tests**: `pytest` (configured in pyproject.toml with coverage)
@@ -30,26 +38,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Central Components:**
 
-1. **Assistant Engine (`cr.py`)**: The main orchestrator that:
+1. **Assistant Engine (`code_route/assistant.py`)**: The main orchestrator that:
    - Manages conversations and token usage tracking
    - Interfaces with OpenRouter API for multi-model support
    - Dynamically loads and executes tools from the tools directory
    - Handles tool chaining and result processing
    - Implements conversation history management with multimodal support
 
-2. **Tool System (`tools/base.py` + `tools/*.py`)**: Extensible tool architecture:
+2. **CLI Interface (`code_route/cli.py`)**: Global command-line interface that:
+   - Provides banner display and system status checking
+   - Handles configuration validation and setup
+   - Launches web interface and shows available tools
+   - Manages project initialization with .env files
+
+3. **Tool System (`code_route/tools/base.py` + `code_route/tools/*.py`)**: Extensible tool architecture:
    - `BaseTool` abstract class defines standardized interface for all tools
-   - Tools auto-discovered and loaded from `tools/` directory
+   - Tools auto-discovered and loaded from `code_route/tools/` directory
    - Runtime tool creation via `ToolCreatorTool` enables self-improvement
    - Each tool implements: `name`, `description`, `input_schema`, and `execute()`
 
-3. **Configuration (`config.py`)**: Centralized settings management:
-   - Model selection (currently supports OpenRouter models)
+4. **Configuration (`code_route/config.py`)**: Centralized settings management:
+   - Model selection via OpenRouter (supports multiple providers)
    - Token limits and conversation constraints
    - Feature toggles (thinking mode, tool usage display)
    - Path configurations for tools and prompts
 
-4. **System Prompts (`prompts/system_prompts.py`)**: Comprehensive behavior definition:
+5. **System Prompts (`code_route/prompts/system_prompts.py`)**: Comprehensive behavior definition:
    - Detailed tool usage policies and guidelines
    - Error handling and resolution procedures
    - Security and coding standards
@@ -57,10 +71,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Tool Ecosystem
 
-The framework includes two categories of tools:
+The framework includes comprehensive tools for development and productivity:
 
-**Development Tools**: File operations, code execution, package management, linting
-**Utility Tools**: Web scraping, search, weather, screenshots, browser automation
+**File Operations**: `FileCreatorTool`, `FileEditTool`, `MultiEditTool`, `FileContentReaderTool`, `LSTool`, `GlobTool`, `GrepTool`
+**Development Tools**: `BashTool`, `E2BCodeTool`, `LintingTool`, `UVPackageManager`, `CreateFoldersTool`, `DiffEditorTool`
+**Utility Tools**: `WebScraperTool`, `DuckDuckGoTool`, `WeatherTool`, `ScreenshotTool`, `BrowserTool`
+**Notebook Support**: `NotebookReadTool`, `NotebookEditTool`
+**Productivity**: `TodoWriteTool`, `AgentTool`
 
 **Key Tool**: `ToolCreatorTool` enables the system to generate new tools dynamically by writing Python code that follows the `BaseTool` interface.
 
@@ -75,39 +92,51 @@ The framework includes two categories of tools:
 
 ### Interface Design
 
-**CLI Mode (`cr.py`)**: Terminal-based interface using `rich` for formatting, `prompt-toolkit` for input handling. Features token usage visualization and detailed tool execution display.
+**CLI Mode (`code_route/cli.py`)**: Global command-line interface with rich terminal UI using `rich` for formatting and themed display. Features banner, status checking, tool listing, and assistant launching.
 
-**Web Mode (`app.py`)**: Streamlit interface supporting image uploads, markdown rendering, and visual token tracking. Handles multimodal conversations with base64 image encoding.
+**Assistant Mode (`code_route/assistant.py`)**: Terminal-based interactive assistant using `prompt-toolkit` for input handling and `rich` for output formatting. Features token usage visualization and detailed tool execution display.
+
+**Web Mode (`code_route/app.py`)**: Streamlit interface supporting image uploads, markdown rendering, and visual token tracking. Handles multimodal conversations with base64 image encoding and model switching.
 
 ## Important Development Notes
 
 ### Environment Setup
 - Uses `uv` for fast Python package management
-- Requires OpenRouter API key in `.env` file
+- Requires OpenRouter API key in `.env` file or environment variable
 - Optional E2B API key for secure code execution
 - Python 3.9+ required
+- Global installation via `pip install -e .` or `uv sync`
+
+### API Keys Configuration
+- **Required**: `OPENROUTER_API_KEY` - Get from https://openrouter.ai/
+- **Optional**: `E2B_API_KEY` - For secure code execution sandbox
+- **Optional**: `MODEL` - Override default model selection
+- Place in `.env` file in any project directory or set as environment variables
 
 ### Token Management
-- Conversation token limits enforced via `Config.MAX_CONVERSATION_TOKENS`
+- Conversation token limits enforced via `Config.MAX_CONVERSATION_TOKENS` (200M tokens)
 - Real-time token tracking with progress visualization
-- Automatic conversation reset when limits approached
+- Model-specific token limits via `Config.MAX_TOKENS` (8000)
+- Automatic conversation management when limits approached
 
 ### Tool Development
 - New tools must inherit from `BaseTool` and implement all abstract methods
-- Tools auto-discovered via `pkgutil.iter_modules()` in the tools directory
+- Tools auto-discovered via `pkgutil.iter_modules()` in the `code_route/tools` directory
 - Missing dependencies trigger optional installation prompts
 - Tool execution results formatted as JSON when possible
+- Use `ToolCreatorTool` for runtime tool generation
 
 ### Security Considerations
 - All sensitive data (API keys, tokens) handled via environment variables
 - Tool execution includes error handling and input validation
 - No secrets committed to repository or exposed in logs
-- Sandboxed execution environments for code tools
+- Optional E2B integration for sandboxed code execution
 
 ### Configuration Management
-- Model selection via `Config.MODEL` (supports various OpenRouter models)
+- Model selection via `Config.AVAILABLE_MODELS` (supports multiple OpenRouter providers)
+- Default model: `moonshotai/kimi-k2` (configurable via `MODEL` env var)
 - Temperature and token limits configurable per conversation
-- Tool behavior controlled via feature flags
+- Tool behavior controlled via feature flags (`ENABLE_THINKING`, `SHOW_TOOL_USAGE`)
 - Directory paths configured for cross-platform compatibility
 
 ## Detailed Development Policies
