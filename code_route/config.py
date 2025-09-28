@@ -9,10 +9,8 @@ class Config:
     VERSION = "0.1.0"
     OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
     
-    # Available models
     AVAILABLE_MODELS = {
-        "openai/gpt-4.1": "OpenAI GPT-4.1",
-        "openai/gpt-4.1-mini": "OpenAI GPT-4.1 Mini", 
+        "openai/gpt-5-codex": "OpenAI GPT-5 Codex",
         "anthropic/claude-sonnet-4": "Anthropic Claude Sonnet 4",
         "x-ai/grok-3-mini-beta": "xAI Grok 3 Mini Beta",
         "anthropic/claude-3-5-haiku": "Anthropic Claude 3.5 Haiku",
@@ -21,10 +19,9 @@ class Config:
         "moonshotai/kimi-k2": "Moonshot AI Kimi K2"
     }
     
-    # Default model
-    MODEL = os.getenv('MODEL', "moonshotai/kimi-k2")
-    MAX_TOKENS = 8000
-    MAX_CONVERSATION_TOKENS = 200000000  # max tokens per convo
+    MODEL = os.getenv('MODEL', "openai/gpt-5-codex")
+    MAX_TOKENS = 20000
+    MAX_CONVERSATION_TOKENS = 20000000  # max tokens per convo
 
     # paths
     BASE_DIR = Path(__file__).parent
