@@ -173,8 +173,8 @@ class TodoWriteTool(BaseTool):
             try:
                 with open(self.session_file, 'r') as f:
                     self.todos = json.load(f)
-        except Exception:
-            self.todos = {}
+            except Exception:
+                self.todos = {} 
 
     def _save_todos(self) -> None:
         """Save todos to session file"""
