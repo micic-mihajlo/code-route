@@ -88,8 +88,6 @@ class GrepTool(BaseTool):
         try:
             flags = 0 if case_sensitive else re.IGNORECASE
             regex = re.compile(pattern, flags)
-            
-            # Determine files to search
             if files:
                 search_files = files
             else:
@@ -98,13 +96,11 @@ class GrepTool(BaseTool):
             if not search_files:
                 return 'No files found to search'
 
-            # Perform search based on output mode
             if output_mode == 'files_with_matches':
                 return self._search_files_only(search_files, regex)
-            elif output_mode == 'count':
+            if output_mode == 'count':
                 return self._search_count(search_files, regex)
-            else:  # content mode
-                return self._search_content(search_files, regex, line_numbers, context_before, context_after)
+            return self._search_content(search_files, regex, line_numbers, context_before, context_after)
 
         except re.error as e:
             return f'Error: Invalid regex pattern: {e!s}'
@@ -122,13 +118,10 @@ class GrepTool(BaseTool):
             return []
 
         if glob_pattern:
-            # Use glob pattern
             pattern_path = os.path.join(path, glob_pattern)
             files = glob.glob(pattern_path, recursive=True)
-            # Filter out directories
             files = [f for f in files if os.path.isfile(f)]
         else:
-            # Search all files in directory recursively
             for root, _, filenames in os.walk(path):
                 for filename in filenames:
                     files.append(os.path.join(root, filename))
@@ -185,7 +178,6 @@ class GrepTool(BaseTool):
                 if matches:
                     file_results = []
                     for match_line in matches:
-                        # Add context
                         start = max(0, match_line - context_before)
                         end = min(len(lines), match_line + context_after + 1)
                         

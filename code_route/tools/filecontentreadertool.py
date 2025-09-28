@@ -15,29 +15,29 @@ class FileContentReaderTool(BaseTool):
     When given a directory, recursively reads all text files while skipping binaries and common ignore patterns.
     '''
     
-    # Files and directories to ignore
+    # ignore lists
     IGNORE_PATTERNS = {
-        # Hidden files and directories
+        # hidden files and directories
         '.git', '.svn', '.hg', '.DS_Store', '.env', '.idea', '.vscode', '.settings',
-        # Build directories
+        # build directories
         'node_modules', '__pycache__', 'build', 'dist', 'venv', 'env', 'bin', 'obj',
         'target', 'out', 'Debug', 'Release', 'x64', 'x86', 'builds', 'coverage',
-        # Binary file extensions
+        # binary file extensions
         '.pyc', '.pyo', '.so', '.dll', '.dylib', '.pdb', '.ilk', '.exp', '.map',
         '.exe', '.bin', '.dat', '.db', '.sqlite', '.sqlite3', '.o', '.cache',
         '.lib', '.a', '.sys', '.ko', '.obj', '.iso', '.msi', '.msp', '.msm',
         '.img', '.dmg', '.class', '.jar', '.war', '.ear', '.aar', '.apk',
-        # Media files
+        # media files
         '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.psd', '.ai', '.eps',
         '.mp3', '.mp4', '.avi', '.mov', '.wav', '.aac', '.m4a', '.wma', '.midi',
         '.flv', '.mkv', '.wmv', '.m4v', '.webm', '.3gp', '.mpg', '.mpeg', '.m2v',
         '.ogg', '.ogv', '.webp', '.heic', '.raw', '.svg', '.ico', '.icns',
-        # Archive files
+        # archive files
         '.zip', '.tar', '.gz', '.rar', '.7z', '.pkg', '.deb', '.rpm', '.snap',
         '.bz2', '.xz', '.cab', '.tgz', '.tbz2', '.lz', '.lzma', '.tlz',
-        # IDE and editor files
+        # ide and editor files
         '.sln', '.suo', '.user', '.workspace', '.project', '.classpath', '.iml',
-        # Log and temp files
+        # log and temp files
         '.log', '.tmp', '.temp', '.swp', '.bak', '.old', '.orig', '.pid'
     }
 
@@ -60,15 +60,15 @@ class FileContentReaderTool(BaseTool):
         name = os.path.basename(path)
         ext = os.path.splitext(name)[1].lower()
 
-        # Skip if name or extension matches ignore patterns
+        # skip if name or extension matches ignore patterns
         if name in self.IGNORE_PATTERNS or ext in self.IGNORE_PATTERNS:
             return True
 
-        # Skip hidden files/directories (starting with .)
+        # skip hidden files/directories (starting with .)
         if name.startswith('.'):
             return True
 
-        # If it's a file, check if it's binary using mimetype
+        # if it's a file, check if it's binary using mimetype
         if os.path.isfile(path):
             mime_type, _ = mimetypes.guess_type(path)
             if mime_type and not mime_type.startswith('text/'):
@@ -103,10 +103,10 @@ class FileContentReaderTool(BaseTool):
 
         try:
             for root, dirs, files in os.walk(dir_path):
-                # Filter out directories to skip
+                # filter out directories to skip
                 dirs[:] = [d for d in dirs if not self._should_skip(os.path.join(root, d))]
 
-                # Process files
+                # process files
                 for file in files:
                     file_path = os.path.join(root, file)
                     if not self._should_skip(file_path):
@@ -125,11 +125,11 @@ class FileContentReaderTool(BaseTool):
         try:
             for path in file_paths:
                 if os.path.isdir(path):
-                    # If it's a directory, read it recursively
+                    # if it's a directory, read it recursively
                     dir_results = self._read_directory(path)
                     results.update(dir_results)
                 else:
-                    # If it's a file, read it directly
+                    # if it's a file, read it directly
                     content = self._read_file(path)
                     results[path] = content
 

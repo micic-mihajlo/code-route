@@ -54,7 +54,6 @@ class AgentTool(BaseTool):
             return 'Error: No task provided'
 
         try:
-            # Create a structured sub-task breakdown
             result = self._create_agent_plan(task, task_type, context_files, requirements)
             return result
         except Exception as e:
@@ -71,8 +70,6 @@ class AgentTool(BaseTool):
             "requirements": requirements,
             "next_steps": self._generate_next_steps(task_type)
         }
-        
-        # Format the response for the main assistant
         response = f"""
 🤖 **Agent Task Plan Created**
 

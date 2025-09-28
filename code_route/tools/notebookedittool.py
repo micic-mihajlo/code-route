@@ -90,7 +90,6 @@ class NotebookEditTool(BaseTool):
                 if source:
                     cell['source'] = source.split('\n')
 
-            # Save the modified notebook
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(notebook, f, indent=1)
 

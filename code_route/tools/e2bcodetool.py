@@ -60,19 +60,15 @@ class E2bCodeTool(BaseTool):
             upload_files = kwargs.get("upload_files", [])
             download_paths = kwargs.get("download_paths", [])
             
-            # Create sandbox instance
             sandbox = Sandbox()
             
-            # Upload files if specified
             uploaded_files = []
             for file_spec in upload_files:
                 try:
                     sandbox_path = file_spec["sandbox_path"]
                     content = file_spec["content"]
                     
-                    # Handle both text and base64 content
                     if ";base64," in content:
-                        # Extract base64 data
                         content = content.split(";base64,")[1]
                         file_content = base64.b64decode(content)
                     else:
@@ -88,15 +84,12 @@ class E2bCodeTool(BaseTool):
                         "stderr": ""
                     }, indent=2)
 
-            # Execute code
             result = sandbox.run_code(code)
             
-            # Download requested files
             downloaded_files = {}
             for file_path in download_paths:
                 try:
                     content = sandbox.files.read(file_path)
-                    # Convert binary content to base64
                     if isinstance(content, bytes):
                         content = base64.b64encode(content).decode('utf-8')
                         content = f"data:application/octet-stream;base64,{content}"

@@ -46,21 +46,19 @@ class BashTool(BaseTool):
 
     def execute(self, **kwargs) -> str:
         command = kwargs.get('command')
-        timeout = min(kwargs.get('timeout', 120), 600)  # Cap at 10 minutes
+        timeout = min(kwargs.get('timeout', 120), 600)
         description = kwargs.get('description', '')
         is_background = kwargs.get('is_background', False)
 
         if not command:
             return 'Error: No command provided'
 
-        # Security check for dangerous patterns
         dangerous_patterns = ['rm -rf /', 'sudo rm', '> /dev/null 2>&1 &']
         if any(pattern in command for pattern in dangerous_patterns):
             return f'Error: Command contains potentially dangerous pattern. Please verify: {command}'
 
         try:
             if is_background:
-                # Start background process
                 process = subprocess.Popen(
                     command,
                     shell=True,

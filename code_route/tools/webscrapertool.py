@@ -40,15 +40,12 @@ class WebScraperTool(BaseTool):
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Remove script, style, and other irrelevant elements
             for elem in soup(["script", "style", "noscript", "iframe", "svg", "canvas", "object"]):
                 elem.decompose()
 
-            # Remove comments
             for comment in soup.find_all(text=lambda text: isinstance(text, Comment)):
                 comment.extract()
 
-            # Identify main content container
             main_container = (
                 soup.find('main') or
                 soup.find('article') or
@@ -56,48 +53,34 @@ class WebScraperTool(BaseTool):
                 soup.find(attrs={'class': re.compile(r'(main|content|article)', re.I)})
             )
 
-            # If no main-like container found, fallback to body or entire doc
             if not main_container:
                 main_container = soup.find('body')
             if not main_container:
                 main_container = soup
 
-            # Remove elements likely not part of main content
-            # including nav, footer, aside, forms, and common ad-based sections
             for tag_name in ["nav", "footer", "aside", "form", "header"]:
                 for elem in main_container.find_all(tag_name):
                     elem.decompose()
 
-            # Remove known ad or irrelevant containers by class or id hints
-            # E.g., "sidebar", "ad", "advertisement"
             for elem in main_container.find_all(attrs={'class': re.compile(r'(sidebar|nav|menu|ad|advert)', re.I)}):
                 elem.decompose()
             for elem in main_container.find_all(attrs={'id': re.compile(r'(sidebar|nav|menu|ad|advert)', re.I)}):
                 elem.decompose()
 
-            # Remove empty elements that are not headings or block-level content
             for elem in main_container.find_all(lambda e: (e.name not in ['h1','h2','h3','h4','h5','h6','p','div','ul','ol','li','section','article','main'] and not e.get_text(strip=True))):
                 elem.decompose()
 
-            # Extract page title
             title_elem = soup.find('title')
             page_title = title_elem.get_text(strip=True) if title_elem else ''
 
-            # Extract meta description
             meta_desc = ''
             desc_tag = soup.find('meta', attrs={"name": "description"})
             if desc_tag and desc_tag.get('content'):
                 meta_desc = desc_tag['content'].strip()
 
-            # Convert main content to text
-            # We'll use get_text with a separator to maintain some structure
-            # but we need to carefully handle headings.
-            # Let's extract text in a structured way:
-            # We'll join block-level elements with newlines, and strip excess whitespace.
             block_elements = ['p','h1','h2','h3','h4','h5','h6','li','section','article','main','div']
             text_chunks = []
             for elem in main_container.find_all(block_elements):
-                # Get the text, strip whitespace
                 block_text = elem.get_text(" ", strip=True)
                 if block_text:
                     text_chunks.append(block_text)
@@ -105,10 +88,8 @@ class WebScraperTool(BaseTool):
             cleaned_text = "\n\n".join(text_chunks)
 
             if not cleaned_text.strip():
-                # If no text found, return a default message
                 return "No readable content found on the webpage."
 
-            # Construct final output
             output_parts = []
             if page_title:
                 output_parts.append(f"Title: {page_title}")

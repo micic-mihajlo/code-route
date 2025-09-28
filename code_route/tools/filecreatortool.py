@@ -56,11 +56,11 @@ class FileCreatorTool(BaseTool):
            "files": [
                {
                    "path": "src/main.py",
-                   "content": "# Main file content"
+                   "content": "# main file content"
                },
                {
                    "path": "src/utils.py",
-                   "content": "# Utils file content"
+                   "content": "# utils file content"
                }
            ]
        }
@@ -122,14 +122,11 @@ class FileCreatorTool(BaseTool):
                 binary = file_spec.get('binary', False)
                 encoding = file_spec.get('encoding', 'utf-8')
 
-                # Create parent directories
                 path.parent.mkdir(parents=True, exist_ok=True)
 
-                # Handle content
                 if isinstance(content, dict):
                     content = json.dumps(content, indent=2)
 
-                # Write file
                 mode = 'wb' if binary else 'w'
                 if binary:
                     if isinstance(content, str):

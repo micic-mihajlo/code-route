@@ -8,8 +8,6 @@ try:
     import pyautogui
     from PIL import Image
 except ImportError:
-    # If pyautogui or PIL is missing, you may need to rely on the uvpackagemanager tool
-    # or instruct the user to install them. For now, just raise an error.
     raise ImportError("The ScreenshotTool requires 'pyautogui' and 'Pillow' to be installed.")
 
 class ScreenshotTool(BaseTool):
@@ -56,15 +54,12 @@ class ScreenshotTool(BaseTool):
             return "Invalid region specified. Must be a list of four integers: [x, y, width, height]."
 
         try:
-            # Take screenshot (full screen or specified region)
             screenshot: Image.Image = pyautogui.screenshot(region=region)
 
-            # Convert to base64
             with io.BytesIO() as buffer:
                 screenshot.save(buffer, format="PNG")
                 encoded_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-            # Return the image block as a Python list/dict (not as JSON string)
             return [
                 {
                     "type": "image",

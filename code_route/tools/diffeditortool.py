@@ -44,27 +44,21 @@ class DiffEditorTool(BaseTool):
         old_text = kwargs.get("old_text")
         new_text = kwargs.get("new_text")
 
-        # Check if file exists
         if not os.path.isfile(path):
             return f"Error: File does not exist at path: {path}"
 
-        # Read the file content
         try:
             with open(path, encoding='utf-8') as f:
                 content = f.read()
         except Exception as e:
             return f"Error reading file {path}: {e!s}"
 
-        # Locate the old_text in the file
         index = content.find(old_text)
         if index == -1:
             return f"'{old_text}' not found in the file. No changes made."
 
-        # Replace the first occurrence of old_text with new_text
-        # Since find gave us the exact start, we can do a direct substring replacement:
         new_content = content[:index] + new_text + content[index+len(old_text):]
 
-        # Write the updated content back to the file
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(new_content)

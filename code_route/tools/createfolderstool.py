@@ -34,16 +34,13 @@ class CreateFoldersTool(BaseTool):
         results = []
         for path in folder_paths:
             try:
-                # Normalize path
                 normalized_path = os.path.normpath(path)
                 absolute_path = os.path.abspath(normalized_path)
                 
-                # Validate path
                 if not all(c not in '<>:"|?*' for c in absolute_path):
                     results.append(f"Invalid characters in path: {path}")
                     continue
 
-                # Create directory
                 os.makedirs(absolute_path, exist_ok=True)
                 results.append(f"Successfully created folder: {path}")
 

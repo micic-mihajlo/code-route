@@ -70,14 +70,12 @@ class MultiEditTool(BaseTool):
             return f'Error: File does not exist: {file_path}'
 
         try:
-            # Read original content
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
             original_content = content
             edit_count = 0
 
-            # Apply edits sequentially
             for i, edit in enumerate(edits):
                 old_string = edit.get('old_string')
                 new_string = edit.get('new_string')
@@ -87,7 +85,6 @@ class MultiEditTool(BaseTool):
                     return f'Error: Edit {i+1} - old_string and new_string are identical'
 
                 if not old_string:
-                    # Handle new file creation case
                     if i == 0 and old_string == '':
                         content = new_string
                         edit_count += 1
@@ -95,11 +92,9 @@ class MultiEditTool(BaseTool):
                     else:
                         return f'Error: Edit {i+1} - old_string cannot be empty (except for new file creation)'
 
-                # Check if old_string exists
                 if old_string not in content:
                     return f'Error: Edit {i+1} - old_string not found in file: "{old_string}"'
 
-                # Apply replacement
                 if replace_all:
                     content = content.replace(old_string, new_string)
                     edit_count += content.count(new_string) - original_content.count(new_string)
@@ -109,7 +104,6 @@ class MultiEditTool(BaseTool):
                     content = content.replace(old_string, new_string, 1)
                     edit_count += 1
 
-            # Write updated content
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
 

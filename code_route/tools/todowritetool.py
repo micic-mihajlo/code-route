@@ -112,7 +112,6 @@ class TodoWriteTool(BaseTool):
         if task_id in self.todos:
             return f'Error: Task with ID "{task_id}" already exists'
 
-        # Set default status
         task['status'] = 'pending'
         
         validation_errors = self._validate_todos([task])
@@ -174,16 +173,16 @@ class TodoWriteTool(BaseTool):
             try:
                 with open(self.session_file, 'r') as f:
                     self.todos = json.load(f)
-            except:
-                self.todos = {}
+        except Exception:
+            self.todos = {}
 
     def _save_todos(self) -> None:
         """Save todos to session file"""
         try:
             with open(self.session_file, 'w') as f:
                 json.dump(self.todos, f, indent=2)
-        except:
-            pass  # Fail silently if can't save
+        except Exception:
+            pass  # fail silently if saving fails
 
     def _validate_todos(self, todos: List[Dict]) -> List[str]:
         """Validate todo items and return list of errors"""
@@ -209,8 +208,6 @@ class TodoWriteTool(BaseTool):
             return 'Todo list is empty'
 
         output = ['📋 **Current Todo List**\n']
-        
-        # Group by status
         pending = [t for t in todos if t['status'] == 'pending']
         in_progress = [t for t in todos if t['status'] == 'in_progress']
         completed = [t for t in todos if t['status'] == 'completed']

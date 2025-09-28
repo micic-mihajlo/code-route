@@ -4,7 +4,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# import anthropic
 from openai import OpenAI
 from rich.console import Console
 from rich.panel import Panel
@@ -38,11 +37,11 @@ class ToolCreatorTool(BaseTool):
             base_url="https://openrouter.ai/api/v1"
         )
         self.console = Console()
-        self.tools_dir = Path(__file__).parent.parent / "tools"  # Fixed path
+        self.tools_dir = Path(__file__).parent.parent / "tools"
 
     def _sanitize_filename(self, name: str) -> str:
         """Convert tool name to valid Python filename"""
-        return name + '.py'  # Keep exact name, just add .py
+        return name + '.py'
 
     def _validate_tool_name(self, name: str) -> bool:
         """Validate tool name matches required pattern"""
@@ -51,7 +50,6 @@ class ToolCreatorTool(BaseTool):
     def execute(self, **kwargs) -> str:
         description = kwargs.get("description")
 
-        # Create exact same prompt as the original
         prompt = f"""Create a Python tool class that follows our BaseTool interface. The tool should:
 
 1. {description}
@@ -66,11 +64,11 @@ Important:
 Here's the required structure (including imports and format):
 
 ```python
-from .base import BaseTool  # This import must be present
-import requests  # Add any other required imports
+from .base import BaseTool
+import requests
 
-class ToolName(BaseTool):  # Class name must match name property in uppercase first letter
-    name = "toolname"  # Must match class name in lowercase
+class ToolName(BaseTool):
+    name = "toolname"
     description = '''
     Detailed description here.
     Multiple lines for clarity.
@@ -78,13 +76,11 @@ class ToolName(BaseTool):  # Class name must match name property in uppercase fi
     input_schema = {{
         "type": "object",
         "properties": {{
-            # Required input parameters
         }},
-        "required": []  # List required parameters
+        "required": []
     }}
 
     def execute(self, **kwargs) -> str:
-        # Implementation here
         pass
 ```
 
@@ -93,7 +89,6 @@ Return ONLY the Python code without any explanation or markdown formatting.
 """
 
         try:
-            # Get tool implementation from OpenRouter with animation
             response = self.client.chat.completions.create(
                 model="google/gemini-2.5-flash-preview",
                 max_tokens=8000,
@@ -105,7 +100,6 @@ Return ONLY the Python code without any explanation or markdown formatting.
 
             tool_code = response.choices[0].message.content.strip()
 
-            # Extract tool name from the generated code
             name_match = re.search(r'name\s*=\s*["\']([a-zA-Z0-9_-]+)["\']', tool_code)
             if not name_match:
                 return "Error: Could not extract tool name from generated code"
@@ -113,15 +107,12 @@ Return ONLY the Python code without any explanation or markdown formatting.
             tool_name = name_match.group(1)
             filename = self._sanitize_filename(tool_name)
 
-            # Ensure the tools directory exists
             self.tools_dir.mkdir(exist_ok=True)
 
-            # Save tool to file
             file_path = self.tools_dir / filename
             with open(file_path, 'w') as f:
                 f.write(tool_code)
 
-            # Format the response using Panel like the original
             result = f"""[bold green]✅ Tool created successfully![/bold green]
 Tool name: [cyan]{tool_name}[/cyan]
 File created: [cyan]{filename}[/cyan]

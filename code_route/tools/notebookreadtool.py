@@ -84,4 +84,4 @@ class NotebookReadTool(BaseTool):
         except json.JSONDecodeError:
             return 'Error: Invalid JSON in notebook file'
         except Exception as e:
-            return f'Error reading notebook: {e!s}' 
+            return f'Error reading notebook: {e!s}'
