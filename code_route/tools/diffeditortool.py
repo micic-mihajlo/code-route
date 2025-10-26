@@ -1,4 +1,5 @@
 import os
+from difflib import unified_diff
 
 from .base import BaseTool
 
@@ -49,20 +50,32 @@ class DiffEditorTool(BaseTool):
 
         try:
             with open(path, encoding='utf-8') as f:
-                content = f.read()
+                original_content = f.read()
         except Exception as e:
             return f"Error reading file {path}: {e!s}"
 
-        index = content.find(old_text)
+        index = original_content.find(old_text)
         if index == -1:
             return f"'{old_text}' not found in the file. No changes made."
 
-        new_content = content[:index] + new_text + content[index+len(old_text):]
+        updated_content = original_content[:index] + new_text + original_content[index+len(old_text):]
+
+        diff_lines = unified_diff(
+            original_content.splitlines(keepends=True),
+            updated_content.splitlines(keepends=True),
+            fromfile=f"a/{os.path.basename(path)}",
+            tofile=f"b/{os.path.basename(path)}",
+            lineterm=""
+        )
+        diff_output = "".join(diff_lines)
 
         try:
             with open(path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
+                f.write(updated_content)
         except Exception as e:
             return f"Error writing updated content to file {path}: {e!s}"
 
-        return f"Successfully replaced '{old_text}' with '{new_text}' in {path}."
+        if not diff_output:
+            return "No changes detected after replacement."
+
+        return f"Successfully replaced text in {path}.\n\n```diff\n{diff_output}\n```"

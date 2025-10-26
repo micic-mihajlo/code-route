@@ -98,8 +98,14 @@ def main():
             key="model_selector"
         )
         if selected_model != current_model:
-            st.session_state.assistant.set_model(selected_model)
-            st.rerun()
+            message = st.session_state.assistant.set_model(selected_model)
+            if message.startswith("Error"):
+                st.warning(message)
+            elif message.startswith("Already"):
+                st.info(message)
+            else:
+                st.session_state.messages.append({"role": "system", "content": message})
+                st.rerun()
     with col4:
         if st.button("🔄 Reset", use_container_width=True):
             st.session_state.assistant.reset()

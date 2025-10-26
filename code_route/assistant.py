@@ -5,7 +5,7 @@ import json
 import logging
 import pkgutil
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 from prompt_toolkit import prompt
@@ -39,24 +39,102 @@ class Assistant:
     """main assistant class for code route"""
 
     def __init__(self):
-        if not getattr(Config, 'OPENROUTER_API_KEY', None):
-            raise ValueError("No OPENROUTER_API_KEY found in environment variables")
-
-        # initialize openrouter client
-        self.client = OpenAI(
-            api_key=Config.OPENROUTER_API_KEY,
-            base_url="https://openrouter.ai/api/v1"
-        )
+        self.console = get_themed_console()
 
         self.conversation_history: List[Dict[str, Any]] = []
-        self.console = get_themed_console()
 
         self.thinking_enabled = getattr(Config, 'ENABLE_THINKING', False)
         self.temperature = getattr(Config, 'DEFAULT_TEMPERATURE', 0.65)
         self.total_tokens_used = 0
-        self.current_model = Config.MODEL
+
+        self.current_model = self._resolve_initial_model(getattr(Config, 'MODEL', Config.DEFAULT_MODEL))
+        self.client_settings = Config.MODEL_SETTINGS[self.current_model]
+        self.client = self._create_client_for_model(self.current_model)
 
         self.tools = self._load_tools()
+
+    @staticmethod
+    def _requires_external_key(settings: Dict[str, Any]) -> bool:
+        return settings.get("provider") != "lmstudio"
+
+    def _resolve_initial_model(self, configured_model: str) -> str:
+        preferred = configured_model if configured_model in Config.MODEL_SETTINGS else None
+        try:
+            selected = self._find_first_available_model(preferred)
+        except ValueError as err:
+            raise ValueError(str(err))
+
+        if preferred and selected != preferred:
+            self.console.print(
+                f"[yellow]Falling back from '{preferred}' to '{selected}' due to missing credentials.[/yellow]"
+            )
+        elif not preferred and selected != Config.DEFAULT_MODEL:
+            self.console.print(
+                f"[yellow]Using '{selected}' as the first configured model with credentials.[/yellow]"
+            )
+
+        return selected
+
+    def _find_first_available_model(self, preferred: Optional[str] = None) -> str:
+        seen = set()
+        candidates: List[str] = []
+
+        if preferred:
+            candidates.append(preferred)
+            seen.add(preferred)
+
+        if Config.DEFAULT_MODEL not in seen:
+            candidates.append(Config.DEFAULT_MODEL)
+            seen.add(Config.DEFAULT_MODEL)
+
+        for model in Config.MODEL_SETTINGS.keys():
+            if model not in seen:
+                candidates.append(model)
+                seen.add(model)
+
+        for model in candidates:
+            settings = Config.MODEL_SETTINGS.get(model)
+            if not settings:
+                continue
+            if self._requires_external_key(settings) and not settings.get("api_key"):
+                continue
+            return model
+
+        raise ValueError(
+            "No configured model has the required credentials. Set OPENROUTER_API_KEY or run LM Studio."
+        )
+
+    def _get_model_settings(self, model_name: str) -> Dict[str, Any]:
+        try:
+            return Config.MODEL_SETTINGS[model_name]
+        except KeyError as err:
+            raise ValueError(f"Unknown model '{model_name}'") from err
+
+    def _create_client_for_model(self, model_name: str) -> OpenAI:
+        settings = self._get_model_settings(model_name)
+        provider = settings.get("provider")
+        base_url = settings.get("base_url")
+        api_key = settings.get("api_key")
+
+        if not base_url:
+            raise ValueError(f"Model '{model_name}' is missing a base URL configuration.")
+
+        if provider == "openrouter":
+            if not api_key:
+                raise ValueError("OPENROUTER_API_KEY is required for OpenRouter models.")
+        elif provider == "lmstudio":
+            api_key = api_key or "lmstudio"
+        else:
+            if not api_key:
+                raise ValueError(
+                    f"Model '{model_name}' requires an API key. Update Config.MODEL_SETTINGS with credentials."
+                )
+
+        return OpenAI(api_key=api_key, base_url=base_url)
+
+    def _update_client(self, model_name: str) -> None:
+        self.client_settings = self._get_model_settings(model_name)
+        self.client = self._create_client_for_model(model_name)
 
     def export_conversation(self, filename: str):
         """export conversation to json file"""
@@ -242,6 +320,14 @@ class Assistant:
             return f"Model '{model_name}' not available. Use 'models' command to see available models."
         
         old_model = self.current_model
+        if model_name == old_model:
+            return f"Already using {Config.AVAILABLE_MODELS.get(model_name, model_name)}"
+
+        try:
+            self._update_client(model_name)
+        except ValueError as err:
+            return f"Error switching model: {err}"
+
         self.current_model = model_name
         model_display_name = Config.AVAILABLE_MODELS[model_name]
         return f"Switched from {Config.AVAILABLE_MODELS.get(old_model, old_model)} to {model_display_name}"

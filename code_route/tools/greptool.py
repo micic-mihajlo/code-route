@@ -108,7 +108,6 @@ class GrepTool(BaseTool):
             return f'Error searching files: {e!s}'
 
     def _find_files(self, path: str, glob_pattern: str = None) -> List[str]:
-        """Find files to search based on path and optional glob pattern"""
         files = []
         
         if os.path.isfile(path):
@@ -129,7 +128,6 @@ class GrepTool(BaseTool):
         return sorted(files)
 
     def _search_files_only(self, files: List[str], regex) -> str:
-        """Return only filenames that contain matches"""
         matching_files = []
         
         for file_path in files:
@@ -143,7 +141,6 @@ class GrepTool(BaseTool):
         return '\n'.join(matching_files) if matching_files else 'No matches found'
 
     def _search_count(self, files: List[str], regex) -> str:
-        """Return match counts per file"""
         results = []
         
         for file_path in files:
@@ -162,7 +159,6 @@ class GrepTool(BaseTool):
 
     def _search_content(self, files: List[str], regex, line_numbers: bool, 
                        context_before: int, context_after: int) -> str:
-        """Return matching lines with optional context"""
         results = []
         
         for file_path in files:

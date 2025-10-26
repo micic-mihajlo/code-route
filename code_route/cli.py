@@ -57,26 +57,43 @@ def show_banner():
     ))
 
 
+def _has_usable_model() -> bool:
+    for settings in Config.MODEL_SETTINGS.values():
+        provider = settings.get("provider")
+        base_url = settings.get("base_url")
+        api_key = settings.get("api_key")
+
+        if not base_url:
+            continue
+
+        if provider == "lmstudio":
+            return True
+
+        if api_key:
+            return True
+
+    return False
+
+
 def check_config():
-    """check if the configuration is properly set up"""
-    if not getattr(Config, 'OPENROUTER_API_KEY', None):
-        error_panel = Panel(
-            Text.assemble(
-                (f"{STATUS_ICONS['error']} Missing API Configuration\n\n", "bold red"),
-                ("To use Code Route, you need to set up your OpenRouter API key:\n\n", "white"),
-                ("1. ", "bright_cyan"), ("Get an API key from: ", "white"), ("https://openrouter.ai/\n", "blue underline"),
-                ("2. ", "bright_cyan"), ("Create a .env file in any project directory:\n", "white"),
-                ("   ", ""), ("OPENROUTER_API_KEY=your_api_key_here\n\n", "yellow"),
-                ("Or set it as an environment variable:\n", "white"),
-                ("   ", ""), ("export OPENROUTER_API_KEY=your_api_key_here", "yellow")
-            ),
-            title=f"{STATUS_ICONS['config']} Setup Required",
-            border_style="red",
-            padding=(1, 2)
-        )
-        console.print(error_panel)
-        return False
-    return True
+    """check if at least one model is ready to use"""
+    if _has_usable_model():
+        return True
+
+    error_panel = Panel(
+        Text.assemble(
+            (f"{STATUS_ICONS['error']} Missing model credentials\n\n", "bold red"),
+            ("Set up at least one provider before continuing. Options:\n\n", "white"),
+            ("• ", "bright_cyan"), ("Export OPENROUTER_API_KEY in your environment\n", "white"),
+            ("• ", "bright_cyan"), ("Start LM Studio's local server and (optionally) set LMSTUDIO_API_BASE\n", "white"),
+            ("\nOnce configured, rerun the command.", "dim white"),
+        ),
+        title=f"{STATUS_ICONS['config']} Setup Required",
+        border_style="red",
+        padding=(1, 2)
+    )
+    console.print(error_panel)
+    return False
 
 
 def init_project():
