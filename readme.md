@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Global CLI](https://img.shields.io/badge/Global%20CLI-Ready-green.svg)](https://github.com/micic-mihajlo/code-route)
 
-Code Route is a powerful, globally installable AI assistant that can create and execute tools dynamically, making it extensible and self-improving. Use it anywhere in your system like `gemini` or `tunacode` - but with unique capabilities for autonomous tool creation and visual enhancement.
+Code Route is a powerful, globally installable AI assistant that can create and execute tools dynamically, making it extensible and self-improving.
 
 ## ✨ Features
 
