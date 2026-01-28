@@ -22,22 +22,42 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "anthropic", # Keeping for backward compatibility
-    "openai>=1.0.0", # For OpenRouter integration
+    # LLM Providers
+    "anthropic>=0.34.0",
+    "openai>=1.0.0",
+    "google-generativeai>=0.8.0",
+
+    # Async & Networking
+    "aiohttp>=3.9.0",
+    "anyio>=4.0.0",
+
+    # Memory & RAG
+    "sentence-transformers>=2.2.0",
+
+    # CLI & UI
+    "rich>=13.0.0",
+    "prompt-toolkit>=3.0.0",
+    "textual>=0.80.0",
+
+    # Core utilities
     "python-dotenv",
-    "rich",
     "requests",
     "beautifulsoup4",
     "validators>=0.34.0",
-    "PyAutoGUI",
     "Pillow",
-    "prompt-toolkit",
-    "matplotlib>=3.9.2",
-    "flask>=3.0.3",
-    "werkzeug>=3.1.2",
     "markdownify>=0.14.1",
     "protego>=0.3.1",
     "readability-lxml>=0.8.1",
+
+    # Code analysis
+    "tree-sitter>=0.23.0",
+    "tree-sitter-python>=0.23.0",
+
+    # Tools dependencies
+    "PyAutoGUI",
+    "matplotlib>=3.9.2",
+    "flask>=3.0.3",
+    "werkzeug>=3.1.2",
     "e2b-code-interpreter>=1.0.3",
     "streamlit>=1.45.0",
 ]
