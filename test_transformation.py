@@ -38,6 +38,15 @@ def test_imports():
     from code_route.tools.base import BaseTool, ToolResult, LegacyToolWrapper, is_async_tool
     print("  [OK] tools/base.py imports OK")
 
+    # CLI
+    from code_route.cli import (
+        StreamingRenderer, TokenBuffer,
+        ToolPanel, AgentPanel, TokenUsagePanel, StatusBar, ConversationPanel,
+        KeyBindings, InputHandler,
+        CodeRouteApp,
+    )
+    print("  [OK] cli/ imports OK")
+
     print("\nAll imports successful!")
 
 
@@ -268,6 +277,146 @@ async def test_simple_completion(provider):
         print(f"  [FAIL] Completion failed: {e}")
 
 
+def test_cli_components():
+    """Test the CLI components."""
+    print("\nTesting CLI components...")
+
+    # Test TokenBuffer
+    from code_route.cli.streaming import TokenBuffer, StreamState
+
+    buffer = TokenBuffer()
+    buffer.append("Hello ")
+    buffer.append("world!")
+    assert buffer.content == "Hello world!"
+    print("  [OK] TokenBuffer append works")
+
+    # Test code block detection
+    buffer.clear()
+    buffer.append("Here's code:\n```python\nprint('hi')\n```")
+    assert not buffer.is_in_code_block  # Block is closed
+    print("  [OK] TokenBuffer code block detection works")
+
+    buffer.clear()
+    buffer.append("```python\nprint('hi')")
+    assert buffer.is_in_code_block  # Block is open
+    print("  [OK] TokenBuffer detects open code blocks")
+
+    # Test panels
+    from code_route.cli.panels import (
+        ToolPanel, ToolExecution, ToolStatus,
+        AgentPanel, AgentNode,
+        TokenUsagePanel,
+        StatusBar,
+        ConversationPanel,
+    )
+
+    # Tool panel
+    execution = ToolExecution(
+        name="test_tool",
+        status=ToolStatus.SUCCESS,
+        input_summary="test input",
+        output_summary="test output",
+        duration_ms=42,
+    )
+    panel = ToolPanel(execution)
+    rendered = panel.render()
+    assert rendered is not None
+    print("  [OK] ToolPanel renders")
+
+    # Agent panel
+    root = AgentNode(
+        name="Orchestrator",
+        role="orchestrator",
+        status="working",
+        children=[
+            AgentNode(name="Coder", role="coder", status="idle"),
+            AgentNode(name="Researcher", role="researcher", status="idle"),
+        ]
+    )
+    agent_panel = AgentPanel(root)
+    rendered = agent_panel.render()
+    assert rendered is not None
+    print("  [OK] AgentPanel renders")
+
+    # Token usage
+    token_panel = TokenUsagePanel(
+        input_tokens=1000,
+        output_tokens=500,
+        max_tokens=10000,
+    )
+    assert token_panel.total_tokens == 1500
+    rendered = token_panel.render()
+    assert rendered is not None
+    print("  [OK] TokenUsagePanel renders")
+
+    # Status bar
+    status = StatusBar(model="claude-3-opus", provider="anthropic")
+    status.set_status("Processing")
+    rendered = status.render()
+    assert rendered is not None
+    print("  [OK] StatusBar renders")
+
+    # Conversation panel
+    conv = ConversationPanel()
+    conv.add("user", "Hello!")
+    conv.add("assistant", "Hi there!")
+    assert len(conv.messages) == 2
+    rendered = conv.render()
+    assert rendered is not None
+    print("  [OK] ConversationPanel renders")
+
+    # Test keybindings
+    from code_route.cli.keybindings import KeyBindings, KeyEvent, KeyCode, LineEditor
+
+    bindings = KeyBindings()
+    called = []
+
+    @bindings.add("j", description="Scroll down")
+    def scroll_down():
+        called.append("down")
+
+    @bindings.add("k", description="Scroll up")
+    def scroll_up():
+        called.append("up")
+
+    # Test matching
+    handler = bindings.get_handler(KeyEvent(char="j"))
+    assert handler is not None
+    handler()
+    assert "down" in called
+    print("  [OK] KeyBindings dispatch works")
+
+    # Test help generation
+    help_dict = bindings.get_help()
+    assert "j" in help_dict
+    assert "k" in help_dict
+    print("  [OK] KeyBindings help generation works")
+
+    # Test line editor
+    editor = LineEditor()
+    editor.insert("hello")
+    assert editor.line == "hello"
+    editor.move_left()
+    editor.insert("X")
+    assert editor.line == "hellXo"
+    editor.delete_back()
+    assert editor.line == "hello"
+    print("  [OK] LineEditor works")
+
+    # Test history
+    editor.submit()
+    editor.insert("world")
+    editor.submit()
+    assert len(editor.history) == 2
+    editor.history_up()
+    assert editor.line == "world"
+    editor.history_up()
+    assert editor.line == "hello"
+    print("  [OK] LineEditor history works")
+
+    print("  [OK] All CLI components work!")
+
+
 def main():
     print("=" * 60)
     print("Code Route Multi-Agent Transformation Test")
@@ -279,6 +428,7 @@ def main():
     test_event_bus()
     test_tool_result()
     test_agent_task()
+    test_cli_components()
 
     # Run async tests
     async def async_tests():
