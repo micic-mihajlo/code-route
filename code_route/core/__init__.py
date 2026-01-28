@@ -1,6 +1,6 @@
 """Core infrastructure for Code Route."""
 
-from .types import Message, ToolCall, ToolResult, CompletionResponse, Usage
+from .types import Message, MessageRole, ToolCall, ToolResult, CompletionResponse, Usage
 from .events import Event, EventType, EventBus
 from .exceptions import (
     CodeRouteError,
@@ -14,6 +14,7 @@ from .exceptions import (
 __all__ = [
     # Types
     "Message",
+    "MessageRole",
     "ToolCall",
     "ToolResult",
     "CompletionResponse",
