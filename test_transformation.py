@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -46,6 +47,20 @@ def test_imports():
         CodeRouteApp,
     )
     print("  [OK] cli/ imports OK")
+
+    # MCP
+    from code_route.mcp import (
+        MCPServer, create_server,
+        ToolHandler, ResourceHandler,
+    )
+    print("  [OK] mcp/ imports OK")
+
+    # Git
+    from code_route.git import (
+        GitOperations, GitStatus, GitDiff, GitCommit, GitBranch, GitError,
+        GitHubOperations, PullRequest, Issue,
+    )
+    print("  [OK] git/ imports OK")
 
     print("\nAll imports successful!")
 
@@ -417,6 +432,129 @@ def test_cli_components():
     print("  [OK] All CLI components work!")
 
 
+def test_mcp_components():
+    """Test the MCP server components."""
+    print("\nTesting MCP components...")
+
+    from code_route.mcp.handlers import ToolHandler, ResourceHandler, PromptHandler
+    from pathlib import Path
+
+    # Test ToolHandler
+    tool_handler = ToolHandler()
+
+    # Create a simple mock tool
+    class MockTool:
+        name = "mock_tool"
+        description = "A mock tool for testing"
+        input_schema = {
+            "type": "object",
+            "properties": {
+                "input": {"type": "string"}
+            }
+        }
+
+        async def execute_async(self, **kwargs):
+            from code_route.tools.base import ToolResult
+            return ToolResult.ok(f"Received: {kwargs.get('input', 'nothing')}")
+
+    tool_handler.register_tool(MockTool())
+    tools = tool_handler.list_tools()
+    assert len(tools) == 1
+    assert tools[0]["name"] == "mock_tool"
+    print("  [OK] ToolHandler registration works")
+
+    # Test tool retrieval
+    tool = tool_handler.get_tool("mock_tool")
+    assert tool is not None
+    assert tool.name == "mock_tool"
+    print("  [OK] ToolHandler get_tool works")
+
+    # Test ResourceHandler
+    resource_handler = ResourceHandler(base_path=Path("."))
+    resources = resource_handler.list_resources()
+    # Should find at least some files in current dir
+    assert isinstance(resources, list)
+    print(f"  [OK] ResourceHandler found {len(resources)} resources")
+
+    # Test PromptHandler
+    prompt_handler = PromptHandler()
+
+    def test_prompt_generator(topic: str = "default"):
+        return [
+            {"role": "user", "content": {"type": "text", "text": f"Tell me about {topic}"}}
+        ]
+
+    prompt_handler.register_prompt(
+        name="explain",
+        description="Explain a topic",
+        generator=test_prompt_generator,
+        arguments=[{"name": "topic", "description": "Topic to explain", "required": True}],
+    )
+
+    prompts = prompt_handler.list_prompts()
+    assert len(prompts) == 1
+    assert prompts[0]["name"] == "explain"
+    print("  [OK] PromptHandler registration works")
+
+    # Test MCP Server creation
+    from code_route.mcp import MCPServer, create_server
+
+    server = create_server(name="test-server", version="0.0.1")
+    assert server.info.name == "test-server"
+    assert server.capabilities.tools == True
+    print("  [OK] MCPServer creation works")
+
+    print("  [OK] All MCP components work!")
+
+
+async def test_git_operations():
+    """Test Git operations."""
+    print("\nTesting Git operations...")
+
+    from code_route.git import GitOperations, GitStatus, GitDiff
+
+    # Use the code-route repo itself for testing
+    git = GitOperations(repo_path=Path("."))
+
+    # Test is_repo
+    is_repo = await git.is_repo()
+    assert is_repo == True
+    print("  [OK] is_repo() works")
+
+    # Test status
+    status = await git.status()
+    assert isinstance(status, GitStatus)
+    assert status.branch != ""
+    print(f"  [OK] status() works - branch: {status.branch}")
+
+    # Test current_branch
+    branch = await git.current_branch()
+    assert branch == status.branch
+    print(f"  [OK] current_branch() works")
+
+    # Test diff
+    diff = await git.diff()
+    assert isinstance(diff, GitDiff)
+    print(f"  [OK] diff() works - {diff.file_count} changed files")
+
+    # Test log
+    commits = await git.log(count=3)
+    assert len(commits) <= 3
+    if commits:
+        assert commits[0].hash != ""
+        assert commits[0].subject != ""
+    print(f"  [OK] log() works - got {len(commits)} commits")
+
+    # Test branches
+    branches = await git.branches()
+    assert len(branches) > 0
+    current = [b for b in branches if b.is_current]
+    assert len(current) == 1
+    print(f"  [OK] branches() works - {len(branches)} branches")
+
+    print("  [OK] All Git operations work!")
+
+
 def main():
     print("=" * 60)
     print("Code Route Multi-Agent Transformation Test")
@@ -429,6 +567,7 @@ def main():
     test_tool_result()
     test_agent_task()
     test_cli_components()
+    test_mcp_components()
 
     # Run async tests
     async def async_tests():
@@ -440,6 +579,9 @@ def main():
         # Memory tests
         await test_memory_system()
         await test_embeddings()
+
+        # Git tests
+        await test_git_operations()
 
     asyncio.run(async_tests())
 
