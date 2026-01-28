@@ -152,6 +152,100 @@ async def test_provider_creation():
     return None
 
 
+async def test_memory_system():
+    """Test the memory and RAG system."""
+    print("\nTesting memory system...")
+
+    import tempfile
+    from pathlib import Path
+
+    # Use temp file for test DB (avoids Windows cleanup issues)
+    import os
+    tmpdir = tempfile.mkdtemp()
+    db_path = Path(tmpdir) / "test_memory.db"
+
+    try:
+        # Test SQLite Memory
+        from code_route.memory import SQLiteMemory
+        from code_route.core import Message, MessageRole
+
+        memory = SQLiteMemory(db_path=db_path)
+
+        # Create conversation
+        conv_id = await memory.create_conversation(
+            project_path="/test/project",
+            title="Test Conversation"
+        )
+        print(f"  [OK] Created conversation: {conv_id[:8]}...")
+
+        # Save messages
+        msg1 = Message(role=MessageRole.USER, content="Hello, how do I write a function?")
+        msg2 = Message(role=MessageRole.ASSISTANT, content="Here's how to write a function in Python...")
+
+        await memory.save_message(conv_id, msg1)
+        await memory.save_message(conv_id, msg2)
+        print("  [OK] Saved messages")
+
+        # Retrieve messages
+        messages = await memory.get_recent_messages(conv_id)
+        assert len(messages) == 2
+        assert messages[0].role == MessageRole.USER
+        print("  [OK] Retrieved messages")
+
+        # Test conversation listing
+        convs = await memory.list_conversations(project_path="/test/project")
+        assert len(convs) == 1
+        assert convs[0].message_count == 2
+        print("  [OK] Listed conversations")
+
+        # Test stats
+        stats = await memory.get_stats()
+        assert stats["conversations"] == 1
+        assert stats["messages"] == 2
+        print(f"  [OK] Stats: {stats['conversations']} convs, {stats['messages']} msgs")
+
+    finally:
+        # Cleanup on Windows needs explicit handling
+        try:
+            import shutil
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        except Exception:
+            pass
+
+
+async def test_embeddings():
+    """Test local embeddings."""
+    print("\nTesting embeddings...")
+
+    from code_route.memory.embeddings import LocalEmbeddings, TextChunker
+
+    # Test chunker first (no model needed)
+    chunker = TextChunker(chunk_size=100, chunk_overlap=20)
+    text = "This is a test. " * 20
+    chunks = chunker.chunk(text)
+    assert len(chunks) > 1
+    print(f"  [OK] Chunker: split into {len(chunks)} chunks")
+
+    # Test embeddings (loads model - may take a moment)
+    print("  Loading embedding model (first time may download)...")
+    embeddings = LocalEmbeddings()
+
+    vec = embeddings.embed("Hello world")
+    assert vec.shape[0] == embeddings.dimension
+    print(f"  [OK] Embedding dimension: {embeddings.dimension}")
+
+    # Test similarity
+    vec1 = embeddings.embed("Hello world")
+    vec2 = embeddings.embed("Hi there")
+    vec3 = embeddings.embed("The weather is nice")
+
+    sim_related = embeddings.similarity(vec1, vec2)
+    sim_unrelated = embeddings.similarity(vec1, vec3)
+
+    assert sim_related > sim_unrelated
+    print(f"  [OK] Similarity: related={sim_related:.3f}, unrelated={sim_unrelated:.3f}")
+
+
 async def test_simple_completion(provider):
     """Test a simple completion with the provider."""
     if not provider:
@@ -192,6 +286,10 @@ def main():
         await test_simple_completion(provider)
         if provider:
             await provider.close()
+
+        # Memory tests
+        await test_memory_system()
+        await test_embeddings()
 
     asyncio.run(async_tests())
 
