@@ -62,6 +62,14 @@ def test_imports():
     )
     print("  [OK] git/ imports OK")
 
+    # Indexer
+    from code_route.indexer import (
+        CodebaseIndexer, ProjectIndex, FileIndex, Symbol, SymbolKind,
+        SymbolExtractor, PythonExtractor, JavaScriptExtractor, TypeScriptExtractor,
+        ProjectContext, CodebaseContext,
+    )
+    print("  [OK] indexer/ imports OK")
+
     print("\nAll imports successful!")
 
 
@@ -555,6 +563,165 @@ async def test_git_operations():
     print("  [OK] All Git operations work!")
 
 
+def test_symbol_extraction():
+    """Test symbol extraction from code."""
+    print("\nTesting symbol extraction...")
+
+    from code_route.indexer.symbols import PythonExtractor, JavaScriptExtractor, TypeScriptExtractor
+    from code_route.indexer.codebase import SymbolKind
+
+    # Test Python extraction
+    py_code = '''
+"""Module docstring."""
+
+CONSTANT_VALUE = 42
+
+class MyClass:
+    """A sample class."""
+
+    def method(self, arg: str) -> int:
+        """Method docstring."""
+        return 0
+
+def standalone_function(x, y):
+    """A standalone function."""
+    return x + y
+
+async def async_function():
+    pass
+'''
+
+    py_extractor = PythonExtractor()
+    symbols = py_extractor.extract(py_code, "test.py")
+
+    # Check class extraction
+    classes = [s for s in symbols if s.kind == SymbolKind.CLASS]
+    assert len(classes) == 1
+    assert classes[0].name == "MyClass"
+    assert "A sample class" in classes[0].docstring
+    print("  [OK] Python class extraction works")
+
+    # Check function extraction
+    functions = [s for s in symbols if s.kind == SymbolKind.FUNCTION]
+    assert len(functions) >= 2
+    func_names = {f.name for f in functions}
+    assert "standalone_function" in func_names
+    assert "async_function" in func_names
+    print("  [OK] Python function extraction works")
+
+    # Check constant extraction
+    constants = [s for s in symbols if s.kind == SymbolKind.CONSTANT]
+    assert len(constants) == 1
+    assert constants[0].name == "CONSTANT_VALUE"
+    print("  [OK] Python constant extraction works")
+
+    # Test import extraction
+    imports = py_extractor.extract_imports("from os import path\nimport json")
+    assert len(imports) == 2
+    print("  [OK] Python import extraction works")
+
+    # Test TypeScript extraction
+    ts_code = '''
+interface User {
+    name: string;
+    age: number;
+}
+
+type Status = "active" | "inactive";
+
+enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+class UserService {
+    getUser(): User {
+        return { name: "test", age: 0 };
+    }
+}
+
+export function createUser(name: string): User {
+    return { name, age: 0 };
+}
+'''
+
+    ts_extractor = TypeScriptExtractor()
+    ts_symbols = ts_extractor.extract(ts_code, "test.ts")
+
+    # Check interface extraction
+    interfaces = [s for s in ts_symbols if s.kind == SymbolKind.INTERFACE]
+    assert len(interfaces) == 1
+    assert interfaces[0].name == "User"
+    print("  [OK] TypeScript interface extraction works")
+
+    # Check type extraction
+    types = [s for s in ts_symbols if s.kind == SymbolKind.TYPE]
+    assert len(types) == 1
+    assert types[0].name == "Status"
+    print("  [OK] TypeScript type extraction works")
+
+    # Check enum extraction
+    enums = [s for s in ts_symbols if s.kind == SymbolKind.ENUM]
+    assert len(enums) == 1
+    assert enums[0].name == "Color"
+    print("  [OK] TypeScript enum extraction works")
+
+    print("  [OK] All symbol extraction works!")
+
+
+async def test_codebase_indexer():
+    """Test codebase indexer."""
+    print("\nTesting codebase indexer...")
+
+    from code_route.indexer import CodebaseIndexer, SymbolKind, ProjectContext, CodebaseContext
+
+    # Index the code_route package itself
+    indexer = CodebaseIndexer(Path("./code_route"))
+    index = await indexer.index()
+
+    assert index is not None
+    assert index.file_count > 0
+    print(f"  [OK] Indexed {index.file_count} files")
+
+    # Check languages detected
+    assert "python" in index.languages
+    print(f"  [OK] Languages detected: {index.languages}")
+
+    # Check symbols found
+    assert index.total_symbols > 0
+    print(f"  [OK] Found {index.total_symbols} symbols")
+
+    # Test symbol search
+    classes = indexer.search("*Provider*", kind=SymbolKind.CLASS)
+    assert len(classes) > 0
+    print(f"  [OK] Symbol search works - found {len(classes)} Provider classes")
+
+    # Test project structure
+    structure = indexer.get_structure()
+    assert "files" in structure
+    assert "symbols" in structure
+    assert "languages" in structure
+    print(f"  [OK] Project structure generation works")
+
+    # Test context generation
+    context = CodebaseContext(indexer)
+    project_ctx = context.get_project_context()
+
+    assert project_ctx.name == "code_route"
+    assert project_ctx.file_count > 0
+    assert len(project_ctx.languages) > 0
+    print(f"  [OK] Project context: {project_ctx.name}, {project_ctx.file_count} files")
+
+    # Test prompt generation
+    prompt = context.to_prompt()
+    assert "code_route" in prompt
+    assert "python" in prompt.lower()
+    print(f"  [OK] Context prompt generation works ({len(prompt)} chars)")
+
+    print("  [OK] All codebase indexer tests pass!")
+
+
 def main():
     print("=" * 60)
     print("Code Route Multi-Agent Transformation Test")
@@ -568,6 +735,7 @@ def main():
     test_agent_task()
     test_cli_components()
     test_mcp_components()
+    test_symbol_extraction()
 
     # Run async tests
     async def async_tests():
@@ -582,6 +750,9 @@ def main():
 
         # Git tests
         await test_git_operations()
+
+        # Indexer tests
+        await test_codebase_indexer()
 
     asyncio.run(async_tests())
 
