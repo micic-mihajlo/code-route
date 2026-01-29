@@ -9,6 +9,7 @@ from .anthropic import AnthropicProvider
 from .openai import OpenAIProvider
 from .openrouter import OpenRouterProvider
 from .local import LocalProvider
+from .cerebras import CerebrasProvider
 
 
 # Provider registry
@@ -17,6 +18,7 @@ PROVIDERS: Dict[str, Type[BaseProvider]] = {
     "openai": OpenAIProvider,
     "openrouter": OpenRouterProvider,
     "local": LocalProvider,
+    "cerebras": CerebrasProvider,
 }
 
 # Model prefix to provider mapping
@@ -24,6 +26,7 @@ MODEL_PREFIXES: Dict[str, str] = {
     "claude": "anthropic",
     "gpt": "openai",
     "o1": "openai",
+    "glm": "cerebras",
     "anthropic/": "openrouter",
     "openai/": "openrouter",
     "google/": "openrouter",
@@ -36,6 +39,7 @@ ENV_KEYS: Dict[str, str] = {
     "anthropic": "ANTHROPIC_API_KEY",
     "openai": "OPENAI_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
+    "cerebras": "CEREBRAS_API_KEY",
     "local": "LOCAL_API_KEY",  # Usually not needed
 }
 
@@ -125,8 +129,8 @@ class ProviderFactory:
     @classmethod
     def _detect_available_provider(cls) -> str:
         """Detect which provider is available based on environment."""
-        # Priority order: Anthropic > OpenAI > OpenRouter > Local
-        priority = ["anthropic", "openai", "openrouter", "local"]
+        # Priority order: Anthropic > OpenAI > Cerebras > OpenRouter > Local
+        priority = ["anthropic", "openai", "cerebras", "openrouter", "local"]
 
         for provider in priority:
             env_key = ENV_KEYS.get(provider)
@@ -139,7 +143,7 @@ class ProviderFactory:
 
         raise ConfigError(
             "No LLM provider configured. Set one of: "
-            "ANTHROPIC_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY",
+            "ANTHROPIC_API_KEY, OPENAI_API_KEY, CEREBRAS_API_KEY, or OPENROUTER_API_KEY",
             config_key="api_key",
         )
 
@@ -174,12 +178,15 @@ class ProviderFactory:
             base_url = os.environ.get("LOCAL_API_BASE", "http://localhost:1234/v1")
         elif provider_name == "openrouter":
             base_url = "https://openrouter.ai/api/v1"
+        elif provider_name == "cerebras":
+            base_url = "https://api.cerebras.ai/v1"
 
         # Model defaults
         if model is None:
             defaults = {
                 "anthropic": "claude-sonnet-4-20250514",
                 "openai": "gpt-4o",
+                "cerebras": "glm-4.7",
                 "openrouter": "anthropic/claude-sonnet-4",
                 "local": "local-model",
             }
