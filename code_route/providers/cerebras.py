@@ -159,10 +159,13 @@ class CerebrasProvider(BaseProvider):
             response = await self._client.chat.completions.create(**kwargs)
             choice = response.choices[0]
 
-            # Handle reasoning models (like zai-glm-4.7) that use reasoning field
+            # For reasoning models: content has the answer, reasoning has the thinking
+            # Only fall back to reasoning if content is empty AND model finished (not truncated)
             content = choice.message.content
-            if not content and hasattr(choice.message, 'reasoning') and choice.message.reasoning:
-                content = choice.message.reasoning
+            if not content and choice.finish_reason == "stop":
+                # Model finished but no content - use reasoning as fallback
+                if hasattr(choice.message, 'reasoning') and choice.message.reasoning:
+                    content = choice.message.reasoning
 
             return CompletionResponse(
                 content=content or "",
@@ -226,12 +229,9 @@ class CerebrasProvider(BaseProvider):
             async for chunk in stream:
                 if chunk.choices:
                     delta = chunk.choices[0].delta
-                    # Handle both content and reasoning tokens
-                    token = delta.content
-                    if not token and hasattr(delta, 'reasoning') and delta.reasoning:
-                        token = delta.reasoning
-                    if token:
-                        yield token
+                    # Prioritize content (the actual answer) over reasoning (thinking)
+                    if delta.content:
+                        yield delta.content
 
         except openai.RateLimitError as e:
             raise RateLimitError(
