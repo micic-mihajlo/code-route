@@ -3,6 +3,12 @@ Code Route CLI Application.
 
 Main async application that combines streaming,
 panels, input handling, and event-driven updates.
+
+Features:
+- Persistent conversations across sessions
+- RAG-enhanced context from past conversations
+- Project-aware context (CLAUDE.md, README.md)
+- Session management and history
 """
 
 import asyncio
@@ -21,6 +27,7 @@ from rich.text import Text
 from rich.prompt import Prompt
 from rich.markdown import Markdown
 from rich.align import Align
+from rich.table import Table
 
 from .streaming import StreamingRenderer, ThinkingIndicator
 from .panels import (
@@ -40,7 +47,7 @@ from .keybindings import KeyBindings, KeyCode, create_default_bindings
 if TYPE_CHECKING:
     from ..core.events import EventBus, Event
     from ..providers.base import BaseProvider
-    from ..memory.context import ConversationManager
+    from ..memory.session import SessionManager
 
 
 @dataclass
@@ -65,6 +72,8 @@ class AppConfig:
     show_thinking: bool = True
     auto_save: bool = True
     project_path: Optional[str] = None
+    enable_rag: bool = True
+    enable_persistence: bool = True
 
 
 class CodeRouteApp:
@@ -100,13 +109,13 @@ class CodeRouteApp:
         config: Optional[AppConfig] = None,
         provider: Optional["BaseProvider"] = None,
         event_bus: Optional["EventBus"] = None,
-        conversation_manager: Optional["ConversationManager"] = None,
+        session_manager: Optional["SessionManager"] = None,
     ):
         self.console = console or Console()
         self.config = config or AppConfig()
         self.provider = provider
         self.event_bus = event_bus
-        self.conversation_manager = conversation_manager
+        self.session_manager = session_manager
 
         # State
         self.state = AppState()
@@ -131,6 +140,9 @@ class CodeRouteApp:
 
         # Callbacks
         self._on_message: Optional[Callable[[str], asyncio.Future]] = None
+
+        # System prompt
+        self._system_prompt = self._build_system_prompt()
 
     def _setup_bindings(self) -> KeyBindings:
         """Set up key bindings."""
@@ -218,6 +230,85 @@ class CodeRouteApp:
     def on_message(self, callback: Callable[[str], asyncio.Future]) -> None:
         """Register message handler."""
         self._on_message = callback
+
+    def _build_system_prompt(self) -> str:
+        """Build the system prompt with project context."""
+        base_prompt = """You are Code Route, an intelligent coding assistant.
+
+You help users with:
+- Writing and reviewing code
+- Debugging and fixing issues
+- Understanding codebases
+- Answering technical questions
+
+Be concise, accurate, and helpful. When showing code, use appropriate markdown formatting."""
+
+        # Add project context if available
+        if self.session_manager and self.session_manager.project_context:
+            ctx = self.session_manager.project_context
+            base_prompt += f"\n\n## Current Project\n"
+            base_prompt += f"**Name**: {ctx.name}\n"
+            base_prompt += f"**Path**: {ctx.path}\n"
+
+            if ctx.branch:
+                base_prompt += f"**Git Branch**: {ctx.branch}\n"
+
+            if ctx.context_content:
+                # Truncate if too long
+                content = ctx.context_content
+                if len(content) > 3000:
+                    content = content[:3000] + "\n\n...(truncated)"
+                base_prompt += f"\n**Project Guidelines**:\n{content}"
+
+        return base_prompt
+
+    async def _initialize_session(self) -> None:
+        """Initialize the session manager."""
+        if not self.session_manager:
+            return
+
+        project_path = self.config.project_path or os.getcwd()
+
+        self.status_bar.set_status("Initializing session...")
+
+        conv_id = await self.session_manager.start(project_path=project_path)
+        self.state.current_conversation_id = conv_id
+
+        # Update system prompt with project context
+        self._system_prompt = self._build_system_prompt()
+
+        # Show session info
+        session_info = await self.session_manager.get_session_info()
+        if session_info:
+            msg_count = session_info.message_count
+            if msg_count > 0:
+                self.console.print(
+                    f"[dim]Resumed session with {msg_count} messages[/dim]"
+                )
+
+                # Show last few messages as context
+                if self.session_manager._messages_cache:
+                    recent = self.session_manager._messages_cache[-4:]
+                    for msg in recent:
+                        role = "You" if msg.role.value == "user" else "Assistant"
+                        content = msg.content
+                        if len(content) > 100:
+                            content = content[:100] + "..."
+                        self.conversation_panel.add(msg.role.value, content)
+            else:
+                self.console.print("[dim]Starting new session[/dim]")
+
+        if self.session_manager.project_context:
+            ctx = self.session_manager.project_context
+            project_info = f"[dim]Project: {ctx.name}"
+            if ctx.branch:
+                project_info += f" ({ctx.branch})"
+            if ctx.context_file:
+                project_info += f" - {ctx.context_file} loaded"
+            project_info += "[/dim]"
+            self.console.print(project_info)
+
+        self.status_bar.set_status("Ready")
 
     async def _setup_event_handlers(self) -> None:
         """Set up event bus handlers."""
@@ -401,7 +492,9 @@ class CodeRouteApp:
     async def run_conversation_loop(self) -> None:
         """Run the main conversation loop."""
         self.show_banner()
-        self.status_bar.set_status("Ready")
+
+        # Initialize session for persistence
+        await self._initialize_session()
 
         while self.state.running:
             try:
@@ -416,8 +509,12 @@ class CodeRouteApp:
                     await self._handle_command(user_input)
                     continue
 
-                # Add to conversation
+                # Add to conversation panel
                 self.conversation_panel.add("user", user_input)
+
+                # Save to session (persistence)
+                if self.session_manager:
+                    await self.session_manager.add_user_message(user_input)
 
                 # Process message
                 if self._on_message:
@@ -429,6 +526,10 @@ class CodeRouteApp:
                     if response:
                         await self.show_response(response)
                         self.conversation_panel.add("assistant", response)
+
+                        # Save response to session (persistence)
+                        if self.session_manager:
+                            await self.session_manager.add_assistant_message(response)
 
                     self.status_bar.set_status("Ready")
                 else:
@@ -447,7 +548,9 @@ class CodeRouteApp:
 
     async def _handle_command(self, command: str) -> None:
         """Handle a slash command."""
-        cmd = command.lower().strip()
+        parts = command.strip().split(maxsplit=1)
+        cmd = parts[0].lower()
+        args = parts[1] if len(parts) > 1 else ""
 
         if cmd in ("/quit", "/exit", "/q"):
             self.state.running = False
@@ -462,24 +565,207 @@ class CodeRouteApp:
             self.console.print(self.token_panel.render())
         elif cmd == "/status":
             self.console.print(self.status_bar.render())
+        elif cmd == "/sessions":
+            await self._show_sessions()
+        elif cmd == "/history":
+            await self._show_history(args)
+        elif cmd == "/resume":
+            await self._resume_session(args)
+        elif cmd == "/new":
+            await self._new_session()
+        elif cmd == "/search":
+            await self._search_history(args)
+        elif cmd == "/context":
+            await self._show_context()
         else:
             self.console.print(f"[yellow]Unknown command: {command}[/yellow]")
             self._show_help()
+
+    async def _show_sessions(self) -> None:
+        """Show available sessions."""
+        if not self.session_manager:
+            self.console.print("[yellow]Session management not enabled[/yellow]")
+            return
+
+        sessions = await self.session_manager.list_sessions(limit=20)
+
+        if not sessions:
+            self.console.print("[dim]No sessions found[/dim]")
+            return
+
+        table = Table(title="Sessions", show_header=True, header_style="bold cyan")
+        table.add_column("ID", style="dim", width=12)
+        table.add_column("Project", style="green")
+        table.add_column("Messages", justify="right")
+        table.add_column("Last Updated", style="dim")
+        table.add_column("", width=3)
+
+        for session in sessions:
+            is_current = session.id == self.state.current_conversation_id
+            project = Path(session.project_path).name if session.project_path else "Unknown"
+            updated = session.updated_at.strftime("%Y-%m-%d %H:%M")
+
+            table.add_row(
+                session.id[:8] + "...",
+                project,
+                str(session.message_count),
+                updated,
+                "[bold green]*[/bold green]" if is_current else "",
+            )
+
+        self.console.print(table)
+        self.console.print("\n[dim]Use /resume <id> to switch sessions[/dim]")
+
+    async def _show_history(self, args: str) -> None:
+        """Show conversation history."""
+        if not self.session_manager:
+            self.console.print("[yellow]Session management not enabled[/yellow]")
+            return
+
+        limit = 20
+        if args:
+            try:
+                limit = int(args)
+            except ValueError:
+                pass
+
+        messages = self.session_manager._messages_cache[-limit:]
+
+        if not messages:
+            self.console.print("[dim]No messages in current session[/dim]")
+            return
+
+        self.console.print(f"\n[bold]Last {len(messages)} messages:[/bold]\n")
+
+        for msg in messages:
+            role = "[cyan]You[/cyan]" if msg.role.value == "user" else "[magenta]Assistant[/magenta]"
+            content = msg.content
+            if len(content) > 200:
+                content = content[:200] + "..."
+            self.console.print(f"{role}: {content}\n")
+
+    async def _resume_session(self, session_id: str) -> None:
+        """Resume a previous session."""
+        if not self.session_manager:
+            self.console.print("[yellow]Session management not enabled[/yellow]")
+            return
+
+        if not session_id:
+            self.console.print("[yellow]Usage: /resume <session_id>[/yellow]")
+            return
+
+        # Find matching session
+        sessions = await self.session_manager.list_sessions(limit=100)
+        matching = [s for s in sessions if s.id.startswith(session_id)]
+
+        if not matching:
+            self.console.print(f"[red]Session not found: {session_id}[/red]")
+            return
+
+        if len(matching) > 1:
+            self.console.print(f"[yellow]Multiple matches, be more specific[/yellow]")
+            return
+
+        session = matching[0]
+        success = await self.session_manager.switch_session(session.id)
+
+        if success:
+            self.state.current_conversation_id = session.id
+            self._system_prompt = self._build_system_prompt()
+            self.console.print(f"[green]Resumed session {session.id[:8]}... ({session.message_count} messages)[/green]")
+
+            # Show recent context
+            if self.session_manager._messages_cache:
+                recent = self.session_manager._messages_cache[-2:]
+                for msg in recent:
+                    content = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
+                    self.conversation_panel.add(msg.role.value, content)
+        else:
+            self.console.print(f"[red]Failed to resume session[/red]")
+
+    async def _new_session(self) -> None:
+        """Start a new session."""
+        if not self.session_manager:
+            self.console.print("[yellow]Session management not enabled[/yellow]")
+            return
+
+        project_path = self.config.project_path or os.getcwd()
+        conv_id = await self.session_manager.start(project_path=project_path, force_new=True)
+        self.state.current_conversation_id = conv_id
+        self.conversation_panel.clear()
+        self._system_prompt = self._build_system_prompt()
+
+        self.console.print(f"[green]Started new session: {conv_id[:8]}...[/green]")
+
+    async def _search_history(self, query: str) -> None:
+        """Search past conversations using RAG."""
+        if not self.session_manager:
+            self.console.print("[yellow]Session management not enabled[/yellow]")
+            return
+
+        if not query:
+            self.console.print("[yellow]Usage: /search <query>[/yellow]")
+            return
+
+        self.status_bar.set_status("Searching...")
+
+        results = await self.session_manager.search_history(query, top_k=10)
+
+        self.status_bar.set_status("Ready")
+
+        if not results:
+            self.console.print(f"[dim]No results for: {query}[/dim]")
+            return
+
+        self.console.print(f"\n[bold]Search results for '{query}':[/bold]\n")
+
+        for i, result in enumerate(results, 1):
+            similarity = int(result.similarity * 100)
+            text = result.text
+            if len(text) > 150:
+                text = text[:150] + "..."
+
+            self.console.print(f"[cyan]{i}.[/cyan] [{similarity}%] {text}\n")
+
+    async def _show_context(self) -> None:
+        """Show current project context."""
+        if not self.session_manager or not self.session_manager.project_context:
+            self.console.print("[dim]No project context available[/dim]")
+            return
+
+        ctx = self.session_manager.project_context
+        self.console.print(Panel(
+            ctx.to_prompt(),
+            title="[bold]Project Context[/bold]",
+            border_style="green",
+        ))
 
     def _show_help(self) -> None:
         """Show help information."""
         help_text = """
 [bold]Available Commands:[/bold]
 
-  /help     - Show this help
-  /quit     - Exit the application
-  /clear    - Clear the screen
-  /tools    - Show tool executions
-  /tokens   - Show token usage
-  /status   - Show current status
+  [cyan]General:[/cyan]
+  /help       - Show this help
+  /quit       - Exit the application
+  /clear      - Clear the screen
+  /status     - Show current status
+
+  [cyan]Session Management:[/cyan]
+  /sessions   - List available sessions
+  /resume <id> - Resume a previous session
+  /new        - Start a new session
+  /history    - Show conversation history
+
+  [cyan]Search & Context:[/cyan]
+  /search <q> - Search past conversations (RAG)
+  /context    - Show project context
+
+  [cyan]Display:[/cyan]
+  /tools      - Show tool executions
+  /tokens     - Show token usage
 
 [bold]Keyboard Shortcuts:[/bold]
-
   Ctrl+C    - Cancel current operation
   Ctrl+D    - Exit
 """
@@ -498,6 +784,7 @@ class CodeRouteApp:
 async def run_app(
     provider: Optional["BaseProvider"] = None,
     config: Optional[AppConfig] = None,
+    enable_persistence: bool = True,
 ) -> None:
     """
     Convenience function to run the CLI app.
@@ -505,23 +792,50 @@ async def run_app(
     Args:
         provider: LLM provider to use
         config: App configuration
+        enable_persistence: Enable session persistence and RAG
     """
     from ..core.events import EventBus
 
     event_bus = EventBus()
+    config = config or AppConfig()
+
+    # Initialize session manager for persistence
+    session_manager = None
+    if enable_persistence and config.enable_persistence:
+        try:
+            from ..memory.session import SessionManager, SessionConfig
+
+            session_config = SessionConfig(
+                enable_rag=config.enable_rag,
+            )
+            session_manager = SessionManager(session_config)
+        except Exception as e:
+            # Fall back to no persistence if it fails
+            Console().print(f"[yellow]Warning: Session persistence disabled: {e}[/yellow]")
+
     app = CodeRouteApp(
         config=config,
         provider=provider,
         event_bus=event_bus,
+        session_manager=session_manager,
     )
 
     if provider:
         from ..core.types import Message, MessageRole
 
         async def handle_message(user_input: str) -> str:
-            messages = [
-                Message(role=MessageRole.USER, content=user_input)
-            ]
+            # Build context with RAG if session manager available
+            if session_manager and session_manager.is_active:
+                messages = await session_manager.build_context(
+                    current_query=user_input,
+                    system_prompt=app._system_prompt,
+                )
+            else:
+                messages = [
+                    Message(role=MessageRole.SYSTEM, content=app._system_prompt),
+                    Message(role=MessageRole.USER, content=user_input),
+                ]
+
             response = await provider.complete(messages)
             return response.content
 
