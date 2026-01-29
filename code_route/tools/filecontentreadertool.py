@@ -15,6 +15,25 @@ class FileContentReaderTool(BaseTool):
     When given a directory, recursively reads all text files while skipping binaries and common ignore patterns.
     '''
     
+    # Text file extensions that should always be read (not binary)
+    TEXT_EXTENSIONS = {
+        '.txt', '.md', '.rst', '.markdown',
+        # Code files
+        '.py', '.js', '.ts', '.tsx', '.jsx', '.mjs', '.cjs',
+        '.java', '.c', '.cpp', '.h', '.hpp', '.cs', '.go', '.rs', '.rb', '.php',
+        '.swift', '.kt', '.kts', '.scala', '.clj', '.ex', '.exs', '.erl', '.hs',
+        '.lua', '.r', '.m', '.mm', '.pl', '.pm', '.sh', '.bash', '.zsh', '.fish',
+        '.ps1', '.psm1', '.bat', '.cmd', '.awk', '.sed',
+        # Config files
+        '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf', '.config',
+        '.xml', '.html', '.htm', '.xhtml', '.css', '.scss', '.sass', '.less',
+        '.sql', '.graphql', '.proto', '.thrift',
+        # Other text
+        '.csv', '.tsv', '.env.example', '.gitignore', '.dockerignore',
+        '.editorconfig', '.prettierrc', '.eslintrc', '.babelrc',
+        'Dockerfile', 'Makefile', 'CMakeLists.txt', 'Cargo.toml', 'go.mod',
+    }
+
     # ignore lists
     IGNORE_PATTERNS = {
         # hidden files and directories
@@ -64,14 +83,19 @@ class FileContentReaderTool(BaseTool):
         if name in self.IGNORE_PATTERNS or ext in self.IGNORE_PATTERNS:
             return True
 
-        # skip hidden files/directories (starting with .)
-        if name.startswith('.'):
+        # skip hidden files/directories (starting with .) except common config files
+        if name.startswith('.') and name not in {'.gitignore', '.env.example', '.editorconfig'}:
             return True
+
+        # if it's a known text extension, don't skip
+        if ext in self.TEXT_EXTENSIONS or name in self.TEXT_EXTENSIONS:
+            return False
 
         # if it's a file, check if it's binary using mimetype
         if os.path.isfile(path):
             mime_type, _ = mimetypes.guess_type(path)
-            if mime_type and not mime_type.startswith('text/'):
+            # Only skip if mimetype is known and not text
+            if mime_type and not mime_type.startswith('text/') and not mime_type.startswith('application/json'):
                 return True
 
         return False
