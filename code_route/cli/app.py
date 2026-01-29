@@ -862,8 +862,44 @@ async def run_app(
     )
 
     if provider:
-        from ..core.types import Message, MessageRole
+        from ..core.types import Message, MessageRole, ToolSchema, ToolCall
         from typing import AsyncIterator
+        import json
+
+        # Load available tools
+        tools = {}
+        try:
+            from ..tools.bashtool import BashTool
+            from ..tools.filecontentreadertool import FileContentReaderTool
+            from ..tools.lstool import LSTool
+            from ..tools.globtool import GlobTool
+            from ..tools.greptool import GrepTool
+            from ..tools.filecreatortool import FileCreatorTool
+            from ..tools.fileedittool import FileEditTool
+
+            tool_instances = [
+                BashTool(),
+                FileContentReaderTool(),
+                LSTool(),
+                GlobTool(),
+                GrepTool(),
+                FileCreatorTool(),
+                FileEditTool(),
+            ]
+            tools = {t.name: t for t in tool_instances}
+            Console().print(f"[dim]Loaded {len(tools)} tools: {', '.join(tools.keys())}[/dim]\n")
+        except Exception as e:
+            Console().print(f"[yellow]Warning: Could not load tools: {e}[/yellow]")
+
+        # Build tool schemas for LLM
+        tool_schemas = [
+            ToolSchema(
+                name=t.name,
+                description=t.description,
+                parameters=t.input_schema
+            )
+            for t in tools.values()
+        ] if tools else None
 
         async def build_messages(user_input: str) -> list:
             """Build context messages."""
@@ -878,36 +914,81 @@ async def run_app(
                     Message(role=MessageRole.USER, content=user_input),
                 ]
 
-        # Streaming handler (preferred)
-        async def handle_stream(user_input: str) -> AsyncIterator[str]:
-            """Stream response tokens."""
-            messages = await build_messages(user_input)
+        async def execute_tool(name: str, arguments: dict) -> str:
+            """Execute a tool and return result."""
+            if name not in tools:
+                return f"Error: Unknown tool '{name}'"
+            try:
+                tool = tools[name]
+                # Handle both sync and async execute
+                result = tool.execute(**arguments)
+                if hasattr(result, '__await__'):
+                    result = await result
+                return str(result) if result else "Tool executed successfully"
+            except Exception as e:
+                return f"Error executing {name}: {e}"
 
-            # Update token panel with input tokens estimate
-            input_estimate = sum(len(str(m.content)) // 4 for m in messages)
-            app.token_panel.add(input_tokens=input_estimate)
-
-            # Stream tokens from provider
-            async for token in provider.stream(messages):
-                yield token
-
-        # Non-streaming fallback
+        # Agentic handler - executes tools in a loop
         async def handle_message(user_input: str) -> str:
-            """Non-streaming response."""
+            """Agentic response with tool execution."""
             messages = await build_messages(user_input)
-            response = await provider.complete(messages)
+            max_iterations = 10
+            iteration = 0
+            final_response = ""
 
-            # Update token panel
-            if response.usage:
-                app.token_panel.add(
-                    input_tokens=response.usage.prompt_tokens,
-                    output_tokens=response.usage.completion_tokens,
+            while iteration < max_iterations:
+                iteration += 1
+
+                # Get LLM response with tools
+                response = await provider.complete(
+                    messages,
+                    tools=tool_schemas,
+                    max_tokens=4096,
                 )
 
-            return response.content
+                # Update token panel
+                if response.usage:
+                    app.token_panel.add(
+                        input_tokens=response.usage.prompt_tokens,
+                        output_tokens=response.usage.completion_tokens,
+                    )
 
-        # Register both handlers - streaming takes precedence
-        app.on_stream(handle_stream)
+                # Check for tool calls
+                if response.tool_calls:
+                    # Show what the assistant said
+                    if response.content:
+                        Console().print(f"[cyan]{response.content}[/cyan]")
+
+                    # Execute each tool call
+                    for tc in response.tool_calls:
+                        Console().print(f"\n[yellow]▶ Executing {tc.name}...[/yellow]")
+                        result = await execute_tool(tc.name, tc.arguments)
+                        # Truncate long results for display
+                        display_result = result[:500] + "..." if len(result) > 500 else result
+                        Console().print(f"[dim]{display_result}[/dim]")
+
+                        # Add tool call and result to messages
+                        messages.append(Message(
+                            role=MessageRole.ASSISTANT,
+                            content=response.content or "",
+                            tool_calls=[tc],
+                        ))
+                        messages.append(Message(
+                            role=MessageRole.TOOL,
+                            content=result,
+                            tool_call_id=tc.id,
+                            name=tc.name,
+                        ))
+
+                    continue  # Loop for more tool calls
+
+                # No tool calls - final response
+                final_response = response.content
+                break
+
+            return final_response
+
+        # Register handler
         app.on_message(handle_message)
 
     await app.run()
