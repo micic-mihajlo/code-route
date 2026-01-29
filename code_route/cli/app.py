@@ -927,6 +927,8 @@ def main():
     parser.add_argument("--status", action="store_true", help="Show system status")
     parser.add_argument("--version", action="store_true", help="Show version")
     parser.add_argument("--no-banner", action="store_true", help="Skip banner")
+    parser.add_argument("--provider", "-p", type=str, help="LLM provider (anthropic, openai, cerebras, openrouter, local)")
+    parser.add_argument("--model", "-m", type=str, help="Model to use (e.g., zai-glm-4.7, claude-sonnet-4)")
 
     args = parser.parse_args()
 
@@ -962,12 +964,23 @@ def main():
                 launch_web()
             return
 
+        # Create provider if specified
+        provider = None
+        if args.provider or args.model:
+            from ..providers import get_provider
+            provider = get_provider(args.provider, args.model)
+            Console().print(f"[cyan]Using {provider.name}: {provider._model}[/cyan]\n")
+
         # Run new async app
-        asyncio.run(run_app())
+        asyncio.run(run_app(provider=provider))
 
     except ImportError:
-        # New-style startup
-        asyncio.run(run_app())
+        # New-style startup - also handle provider args
+        provider = None
+        if hasattr(args, 'provider') and (args.provider or args.model):
+            from ..providers import get_provider
+            provider = get_provider(args.provider, args.model)
+        asyncio.run(run_app(provider=provider))
 
 
 if __name__ == "__main__":
