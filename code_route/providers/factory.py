@@ -186,7 +186,7 @@ class ProviderFactory:
             defaults = {
                 "anthropic": "claude-sonnet-4-20250514",
                 "openai": "gpt-4o",
-                "cerebras": "glm-4.7",
+                "cerebras": "zai-glm-4.7",
                 "openrouter": "anthropic/claude-sonnet-4",
                 "local": "local-model",
             }

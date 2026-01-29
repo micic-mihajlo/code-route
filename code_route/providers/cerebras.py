@@ -32,11 +32,16 @@ class CerebrasProvider(BaseProvider):
     """
 
     BASE_URL = "https://api.cerebras.ai/v1"
-    DEFAULT_MODEL = "glm-4.7"
+    DEFAULT_MODEL = "zai-glm-4.7"
 
     # Available models on Cerebras
     AVAILABLE_MODELS = [
-        "glm-4.7",
+        "zai-glm-4.7",
+        "llama-3.3-70b",
+        "llama3.1-8b",
+        "qwen-3-32b",
+        "qwen-3-235b-a22b-instruct-2507",
+        "gpt-oss-120b",
     ]
 
     def __init__(self, config: ProviderConfig):
@@ -154,8 +159,13 @@ class CerebrasProvider(BaseProvider):
             response = await self._client.chat.completions.create(**kwargs)
             choice = response.choices[0]
 
+            # Handle reasoning models (like zai-glm-4.7) that use reasoning field
+            content = choice.message.content
+            if not content and hasattr(choice.message, 'reasoning') and choice.message.reasoning:
+                content = choice.message.reasoning
+
             return CompletionResponse(
-                content=choice.message.content or "",
+                content=content or "",
                 tool_calls=self._parse_tool_calls(choice.message.tool_calls) or None,
                 usage=Usage(
                     prompt_tokens=response.usage.prompt_tokens if response.usage else 0,
@@ -214,8 +224,14 @@ class CerebrasProvider(BaseProvider):
             stream = await self._client.chat.completions.create(**kwargs)
 
             async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+                if chunk.choices:
+                    delta = chunk.choices[0].delta
+                    # Handle both content and reasoning tokens
+                    token = delta.content
+                    if not token and hasattr(delta, 'reasoning') and delta.reasoning:
+                        token = delta.reasoning
+                    if token:
+                        yield token
 
         except openai.RateLimitError as e:
             raise RateLimitError(
