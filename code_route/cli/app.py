@@ -140,6 +140,7 @@ class CodeRouteApp:
 
         # Callbacks
         self._on_message: Optional[Callable[[str], asyncio.Future]] = None
+        self._on_stream: Optional[Callable[[str], asyncio.Future]] = None
 
         # System prompt
         self._system_prompt = self._build_system_prompt()
@@ -228,8 +229,12 @@ class CodeRouteApp:
         self.state.show_agents = not self.state.show_agents
 
     def on_message(self, callback: Callable[[str], asyncio.Future]) -> None:
-        """Register message handler."""
+        """Register message handler (non-streaming)."""
         self._on_message = callback
+
+    def on_stream(self, callback: Callable[[str], asyncio.Future]) -> None:
+        """Register streaming handler. Takes precedence over on_message."""
+        self._on_stream = callback
 
     def _build_system_prompt(self) -> str:
         """Build the system prompt with project context."""
@@ -441,7 +446,7 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
 
     async def show_response(self, response: str) -> None:
         """
-        Display an assistant response with streaming.
+        Display an assistant response (non-streaming).
 
         Args:
             response: Response text
@@ -456,7 +461,7 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
 
     async def stream_response(self, tokens) -> str:
         """
-        Stream a response token by token.
+        Stream a response token by token with live display.
 
         Args:
             tokens: Async iterator of tokens
@@ -464,7 +469,21 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
         Returns:
             Complete response
         """
-        return await self.streaming_renderer.stream_tokens(tokens)
+        self.console.print()  # Add spacing
+
+        # Track tokens for panel update
+        token_count = 0
+
+        async with self.streaming_renderer.stream() as stream:
+            async for token in tokens:
+                await stream.push(token)
+                token_count += 1
+
+                # Update token panel periodically
+                if token_count % 10 == 0:
+                    self.token_panel.add(output_tokens=10)
+
+        return self.streaming_renderer.buffer.content
 
     async def show_tool_execution(
         self,
@@ -517,7 +536,29 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
                     await self.session_manager.add_user_message(user_input)
 
                 # Process message
-                if self._on_message:
+                if self._on_stream:
+                    # Streaming mode
+                    self.status_bar.set_status("Generating...")
+
+                    try:
+                        # _on_stream returns an async generator, not a coroutine
+                        tokens = self._on_stream(user_input)
+                        response = await self.stream_response(tokens)
+
+                        if response:
+                            self.conversation_panel.add("assistant", response[:200] + "..." if len(response) > 200 else response)
+
+                            # Save response to session (persistence)
+                            if self.session_manager:
+                                await self.session_manager.add_assistant_message(response)
+
+                    except Exception as e:
+                        self.console.print(f"[red]Error: {e}[/red]")
+
+                    self.status_bar.set_status("Ready")
+
+                elif self._on_message:
+                    # Non-streaming fallback
                     self.status_bar.set_status("Processing...")
 
                     with ThinkingIndicator(self.console, "Thinking..."):
@@ -822,23 +863,51 @@ async def run_app(
 
     if provider:
         from ..core.types import Message, MessageRole
+        from typing import AsyncIterator
 
-        async def handle_message(user_input: str) -> str:
-            # Build context with RAG if session manager available
+        async def build_messages(user_input: str) -> list:
+            """Build context messages."""
             if session_manager and session_manager.is_active:
-                messages = await session_manager.build_context(
+                return await session_manager.build_context(
                     current_query=user_input,
                     system_prompt=app._system_prompt,
                 )
             else:
-                messages = [
+                return [
                     Message(role=MessageRole.SYSTEM, content=app._system_prompt),
                     Message(role=MessageRole.USER, content=user_input),
                 ]
 
+        # Streaming handler (preferred)
+        async def handle_stream(user_input: str) -> AsyncIterator[str]:
+            """Stream response tokens."""
+            messages = await build_messages(user_input)
+
+            # Update token panel with input tokens estimate
+            input_estimate = sum(len(str(m.content)) // 4 for m in messages)
+            app.token_panel.add(input_tokens=input_estimate)
+
+            # Stream tokens from provider
+            async for token in provider.stream(messages):
+                yield token
+
+        # Non-streaming fallback
+        async def handle_message(user_input: str) -> str:
+            """Non-streaming response."""
+            messages = await build_messages(user_input)
             response = await provider.complete(messages)
+
+            # Update token panel
+            if response.usage:
+                app.token_panel.add(
+                    input_tokens=response.usage.prompt_tokens,
+                    output_tokens=response.usage.completion_tokens,
+                )
+
             return response.content
 
+        # Register both handlers - streaming takes precedence
+        app.on_stream(handle_stream)
         app.on_message(handle_message)
 
     await app.run()

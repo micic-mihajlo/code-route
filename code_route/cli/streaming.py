@@ -149,10 +149,8 @@ class StreamingRenderer:
         content = self.buffer.get_display_content()
 
         if not content:
-            # Show spinner while waiting for first token
-            return Group(
-                Spinner("dots", text="Thinking...", style="cyan"),
-            )
+            # Show simple text indicator (ASCII-safe for Windows)
+            return Text("Thinking...", style="cyan italic")
 
         # Add cursor if streaming
         display_content = content
