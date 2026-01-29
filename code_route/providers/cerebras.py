@@ -156,6 +156,13 @@ class CerebrasProvider(BaseProvider):
             if stop:
                 kwargs["stop"] = stop
 
+            # GLM-4.7 specific: preserve thinking context across tool calls
+            if "glm" in self._model.lower():
+                kwargs["extra_body"] = {
+                    "clear_thinking": False,  # Preserve reasoning across tool calls
+                    "disable_reasoning": False,  # Keep reasoning enabled
+                }
+
             response = await self._client.chat.completions.create(**kwargs)
             choice = response.choices[0]
 

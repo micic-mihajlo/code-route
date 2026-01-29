@@ -959,7 +959,14 @@ async def run_app(
                     if response.content:
                         Console().print(f"[cyan]{response.content}[/cyan]")
 
-                    # Execute each tool call
+                    # Add assistant message with ALL tool calls first
+                    messages.append(Message(
+                        role=MessageRole.ASSISTANT,
+                        content=response.content or "",
+                        tool_calls=response.tool_calls,
+                    ))
+
+                    # Execute each tool call and add results
                     for tc in response.tool_calls:
                         Console().print(f"\n[yellow]▶ Executing {tc.name}...[/yellow]")
                         result = await execute_tool(tc.name, tc.arguments)
@@ -967,12 +974,7 @@ async def run_app(
                         display_result = result[:500] + "..." if len(result) > 500 else result
                         Console().print(f"[dim]{display_result}[/dim]")
 
-                        # Add tool call and result to messages
-                        messages.append(Message(
-                            role=MessageRole.ASSISTANT,
-                            content=response.content or "",
-                            tool_calls=[tc],
-                        ))
+                        # Add tool result
                         messages.append(Message(
                             role=MessageRole.TOOL,
                             content=result,
