@@ -72,7 +72,7 @@ class AppConfig:
     show_thinking: bool = True
     auto_save: bool = True
     project_path: Optional[str] = None
-    enable_rag: bool = True
+    enable_rag: bool = False  # Disabled by default - slow embedding loading
     enable_persistence: bool = True
 
 
