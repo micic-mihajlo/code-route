@@ -376,7 +376,7 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
         self.event_bus.subscribe(EventType.TOOL_ERROR, on_tool_error)
         self.event_bus.subscribe(EventType.AGENT_STARTED, on_agent_start)
         self.event_bus.subscribe(EventType.AGENT_COMPLETED, on_agent_complete)
-        self.event_bus.subscribe(EventType.STREAM_CHUNK, on_tokens_used)
+        self.event_bus.subscribe(EventType.STREAM_TOKEN, on_tokens_used)
 
     def _build_layout(self) -> Layout:
         """Build the application layout."""
