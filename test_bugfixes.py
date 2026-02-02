@@ -9,9 +9,45 @@ import pytest
 
 from code_route.cli.app import AppConfig, CodeRouteApp
 from code_route.cli.panels import ToolStatus
+from code_route.coding_agent import CodingAgent
 from code_route.core.events import Event, EventBus, EventType
+from code_route.core.types import CompletionResponse, Message, ToolSchema
 from code_route.mcp.handlers import ResourceHandler
 from code_route.mcp.server import MCPServer
+from code_route.providers.base import BaseProvider, ProviderCapabilities, ProviderConfig
+
+
+class NoopProvider(BaseProvider):
+    @property
+    def name(self) -> str:
+        return "noop"
+
+    @property
+    def capabilities(self) -> ProviderCapabilities:
+        return ProviderCapabilities()
+
+    async def complete(
+        self,
+        messages: list[Message],
+        tools: list[ToolSchema] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        stop: list[str] | None = None,
+    ) -> CompletionResponse:
+        _ = (messages, tools, temperature, max_tokens, stop)
+        return CompletionResponse(content="")
+
+    async def stream(
+        self,
+        messages: list[Message],
+        tools: list[ToolSchema] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        stop: list[str] | None = None,
+    ):
+        _ = (messages, tools, temperature, max_tokens, stop)
+        if False:
+            yield ""  # pragma: no cover
 
 
 def test_mcp_send_message_uses_utf8_byte_length() -> None:
@@ -108,6 +144,16 @@ async def test_cli_event_handlers_accept_agent_payload_aliases() -> None:
 
     await bus.publish(
         Event(
+            type=EventType.TOOL_COMPLETED,
+            data={"tool": "greptool", "success": False, "error": "boom"},
+        )
+    )
+    tool_exec = app.tool_list.executions[0]
+    assert tool_exec.status == ToolStatus.ERROR
+    assert tool_exec.error == "boom"
+
+    await bus.publish(
+        Event(
             type=EventType.AGENT_STARTED,
             data={"agent": "orchestrator", "description": "Inspect repository"},
         )
@@ -124,3 +170,26 @@ async def test_cli_event_handlers_accept_agent_payload_aliases() -> None:
         )
     )
     assert app.agent_panel.root.status == "complete"
+
+
+@pytest.mark.asyncio
+async def test_coding_agent_event_sink_awaits_generic_awaitable() -> None:
+    await_called = {"value": False}
+
+    class ProbeAwaitable:
+        def __await__(self):
+            await_called["value"] = True
+            if False:
+                yield None
+            return None
+
+    def sink(_event):
+        return ProbeAwaitable()
+
+    agent = CodingAgent(
+        provider=NoopProvider(ProviderConfig(model="noop")),
+        tools=[],
+        event_sink=sink,
+    )
+    await agent._emit("probe")
+    assert await_called["value"] is True

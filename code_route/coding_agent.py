@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import time
 from dataclasses import dataclass, field
@@ -64,7 +65,7 @@ class CodingAgent:
             "payload": payload,
         }
         result = self._event_sink(event)
-        if asyncio.iscoroutine(result):
+        if inspect.isawaitable(result):
             await result
 
     async def _execute_tool(self, call: ToolCall) -> ToolResult:

@@ -418,12 +418,16 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
                 _first(event.data, "tool_name", "tool", default="unknown")
             )
             tool_result = _first(event.data, "result")
+            tool_succeeded = bool(event.data.get("success", True))
+            if event.data.get("error") is not None:
+                tool_succeeded = False
             if tool_result is None and "success" in event.data:
                 tool_result = "success" if event.data.get("success") else "failed"
             self.tool_list.update(
                 tool_name,
-                status=ToolStatus.SUCCESS,
+                status=ToolStatus.SUCCESS if tool_succeeded else ToolStatus.ERROR,
                 output_summary=str(tool_result or "")[:100],
+                error=str(event.data.get("error", ""))[:200] if not tool_succeeded else None,
                 completed_at=datetime.now(),
                 duration_ms=event.data.get("duration_ms"),
             )
