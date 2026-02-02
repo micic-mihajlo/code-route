@@ -334,7 +334,9 @@ class ResourceHandler:
             resolved = file_path.resolve()
             base_resolved = self.base_path.resolve()
 
-            if not str(resolved).startswith(str(base_resolved)):
+            try:
+                resolved.relative_to(base_resolved)
+            except ValueError:
                 return {
                     "contents": [
                         {
@@ -345,7 +347,7 @@ class ResourceHandler:
                     ],
                 }
 
-            if not file_path.exists():
+            if not resolved.exists():
                 return {
                     "contents": [
                         {
@@ -356,13 +358,13 @@ class ResourceHandler:
                     ],
                 }
 
-            content = file_path.read_text(encoding="utf-8")
-            mime_type = self._get_mime_type(file_path.suffix)
+            content = resolved.read_text(encoding="utf-8")
+            mime_type = self._get_mime_type(resolved.suffix)
 
             return {
                 "contents": [
                     {
-                        "uri": f"file:///{file_path.as_posix()}",
+                        "uri": f"file:///{resolved.as_posix()}",
                         "mimeType": mime_type,
                         "text": content,
                     }

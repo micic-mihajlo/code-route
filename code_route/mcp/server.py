@@ -12,7 +12,7 @@ import asyncio
 import json
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, TextIO, TYPE_CHECKING
+from typing import Any, Dict, IO, List, Optional, TYPE_CHECKING, Union
 from pathlib import Path
 
 from .handlers import ToolHandler, ResourceHandler, PromptHandler
@@ -81,8 +81,9 @@ class MCPServer:
         self.prompt_handler = PromptHandler()
 
         # IO
-        self._stdin: TextIO = sys.stdin
-        self._stdout: TextIO = sys.stdout
+        # Use binary stdio for correct MCP byte framing.
+        self._stdin: IO[Union[str, bytes]] = getattr(sys.stdin, "buffer", sys.stdin)
+        self._stdout: IO[Union[str, bytes]] = getattr(sys.stdout, "buffer", sys.stdout)
         self._running = False
 
         # Request ID tracking
@@ -96,13 +97,21 @@ class MCPServer:
         """Register multiple tools."""
         self.tool_handler.register_tools(tools)
 
+    def _write_raw(self, data: bytes) -> None:
+        """Write raw bytes to stdout, with text-stream fallback."""
+        try:
+            self._stdout.write(data)  # type: ignore[arg-type]
+        except TypeError:
+            # Fallback for tests or custom text streams.
+            self._stdout.write(data.decode("utf-8"))  # type: ignore[arg-type]
+
     def _send_message(self, message: Dict[str, Any]) -> None:
         """Send a JSON-RPC message."""
-        content = json.dumps(message)
+        payload = json.dumps(message, ensure_ascii=False).encode("utf-8")
         # MCP uses Content-Length header like LSP
-        header = f"Content-Length: {len(content)}\r\n\r\n"
-        self._stdout.write(header)
-        self._stdout.write(content)
+        header = f"Content-Length: {len(payload)}\r\n\r\n".encode("ascii")
+        self._write_raw(header)
+        self._write_raw(payload)
         self._stdout.flush()
 
     def _send_response(
@@ -145,12 +154,16 @@ class MCPServer:
             # Read header
             headers: Dict[str, str] = {}
             while True:
-                line = await asyncio.get_event_loop().run_in_executor(
-                    None, self._stdin.readline
+                line_raw = await asyncio.get_event_loop().run_in_executor(
+                    None, self._stdin.readline,
                 )
-                if not line:
+                if not line_raw:
                     return None
 
+                if isinstance(line_raw, bytes):
+                    line = line_raw.decode("ascii", errors="replace")
+                else:
+                    line = line_raw
                 line = line.strip()
                 if not line:
                     break
@@ -164,12 +177,23 @@ class MCPServer:
             if content_length == 0:
                 return None
 
-            # Read content
-            content = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: self._stdin.read(content_length)
-            )
+            # Read exact payload bytes.
+            payload = bytearray()
+            while len(payload) < content_length:
+                remaining = content_length - len(payload)
+                chunk = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda n=remaining: self._stdin.read(n),
+                )
+                if not chunk:
+                    return None
 
-            return json.loads(content)
+                if isinstance(chunk, str):
+                    payload.extend(chunk.encode("utf-8"))
+                else:
+                    payload.extend(chunk)
+
+            return json.loads(payload.decode("utf-8"))
 
         except Exception:
             return None

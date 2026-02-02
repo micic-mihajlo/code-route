@@ -373,44 +373,94 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
 
         from ..core.events import EventType
 
+        def _first(data: Dict[str, Any], *keys: str, default: Any = None) -> Any:
+            for key in keys:
+                value = data.get(key)
+                if value is not None:
+                    return value
+            return default
+
+        def _find_agent(node: AgentNode, name: str) -> Optional[AgentNode]:
+            if node.name == name:
+                return node
+            for child in node.children:
+                match = _find_agent(child, name)
+                if match:
+                    return match
+            return None
+
+        def _ensure_agent_node(agent_name: str, role: str) -> None:
+            if self.agent_panel.root is None:
+                self.agent_panel.set_root(AgentNode(name=agent_name, role=role))
+                return
+            if _find_agent(self.agent_panel.root, agent_name):
+                return
+            self.agent_panel.root.children.append(
+                AgentNode(name=agent_name, role=role)
+            )
+
         # Tool events
         async def on_tool_start(event: "Event"):
+            tool_name = str(
+                _first(event.data, "tool_name", "tool", default="unknown")
+            )
+            tool_input = _first(event.data, "input", "args", default="")
             self.tool_list.add(ToolExecution(
-                name=event.data.get("tool_name", "unknown"),
+                name=tool_name,
                 status=ToolStatus.RUNNING,
-                input_summary=str(event.data.get("input", ""))[:100],
+                input_summary=str(tool_input)[:100],
                 started_at=datetime.now(),
             ))
-            self.status_bar.set_status(f"Running: {event.data.get('tool_name')}")
+            self.status_bar.set_status(f"Running: {tool_name}")
 
         async def on_tool_complete(event: "Event"):
+            tool_name = str(
+                _first(event.data, "tool_name", "tool", default="unknown")
+            )
+            tool_result = _first(event.data, "result")
+            if tool_result is None and "success" in event.data:
+                tool_result = "success" if event.data.get("success") else "failed"
             self.tool_list.update(
-                event.data.get("tool_name", "unknown"),
+                tool_name,
                 status=ToolStatus.SUCCESS,
-                output_summary=str(event.data.get("result", ""))[:100],
+                output_summary=str(tool_result or "")[:100],
                 completed_at=datetime.now(),
                 duration_ms=event.data.get("duration_ms"),
             )
             self.status_bar.set_status("Ready")
 
         async def on_tool_error(event: "Event"):
+            tool_name = str(
+                _first(event.data, "tool_name", "tool", default="unknown")
+            )
             self.tool_list.update(
-                event.data.get("tool_name", "unknown"),
+                tool_name,
                 status=ToolStatus.ERROR,
                 error=str(event.data.get("error", "Unknown error")),
             )
 
         # Agent events
         async def on_agent_start(event: "Event"):
+            agent_name = str(
+                _first(event.data, "agent_name", "agent", default="unknown")
+            )
+            agent_role = str(_first(event.data, "agent_role", "agent", default="agent"))
+            task_text = str(_first(event.data, "task", "description", default=""))
+            _ensure_agent_node(agent_name, agent_role)
             self.agent_panel.update_status(
-                event.data.get("agent_name", "unknown"),
+                agent_name,
                 status="working",
-                task=event.data.get("task", ""),
+                task=task_text,
             )
 
         async def on_agent_complete(event: "Event"):
+            agent_name = str(
+                _first(event.data, "agent_name", "agent", default="unknown")
+            )
+            agent_role = str(_first(event.data, "agent_role", "agent", default="agent"))
+            _ensure_agent_node(agent_name, agent_role)
             self.agent_panel.update_status(
-                event.data.get("agent_name", "unknown"),
+                agent_name,
                 status="complete",
             )
 
