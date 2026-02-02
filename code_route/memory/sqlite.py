@@ -47,6 +47,7 @@ class Conversation:
     id: str
     created_at: datetime
     updated_at: datetime
+    parent_id: Optional[str] = None
     project_path: Optional[str] = None
     title: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -106,6 +107,7 @@ class SQLiteMemory:
                     id TEXT PRIMARY KEY,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    parent_id TEXT REFERENCES conversations(id) ON DELETE SET NULL,
                     project_path TEXT,
                     title TEXT,
                     metadata TEXT DEFAULT '{}'
@@ -142,11 +144,23 @@ class SQLiteMemory:
                     ON conversations(project_path);
                 CREATE INDEX IF NOT EXISTS idx_conversations_updated
                     ON conversations(updated_at);
+                CREATE INDEX IF NOT EXISTS idx_conversations_parent
+                    ON conversations(parent_id);
                 CREATE INDEX IF NOT EXISTS idx_embeddings_conversation
                     ON embeddings(conversation_id);
                 CREATE INDEX IF NOT EXISTS idx_embeddings_message
                     ON embeddings(message_id);
             """)
+
+            # Lightweight migration for existing DBs.
+            columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(conversations)").fetchall()
+            }
+            if "parent_id" not in columns:
+                conn.execute(
+                    "ALTER TABLE conversations ADD COLUMN parent_id TEXT REFERENCES conversations(id) ON DELETE SET NULL"
+                )
+
             conn.commit()
 
     async def create_conversation(
@@ -154,6 +168,7 @@ class SQLiteMemory:
         project_path: Optional[str] = None,
         title: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        parent_id: Optional[str] = None,
     ) -> str:
         """
         Create a new conversation.
@@ -172,10 +187,10 @@ class SQLiteMemory:
         with self._get_connection() as conn:
             conn.execute(
                 """
-                INSERT INTO conversations (id, project_path, title, metadata)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO conversations (id, parent_id, project_path, title, metadata)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (conv_id, project_path, title, metadata_json)
+                (conv_id, parent_id, project_path, title, metadata_json)
             )
             conn.commit()
 
@@ -202,6 +217,7 @@ class SQLiteMemory:
                 id=row["id"],
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
+                parent_id=row["parent_id"],
                 project_path=row["project_path"],
                 title=row["title"],
                 metadata=json.loads(row["metadata"] or "{}"),
@@ -257,6 +273,7 @@ class SQLiteMemory:
                     id=row["id"],
                     created_at=datetime.fromisoformat(row["created_at"]),
                     updated_at=datetime.fromisoformat(row["updated_at"]),
+                    parent_id=row["parent_id"],
                     project_path=row["project_path"],
                     title=row["title"],
                     metadata=json.loads(row["metadata"] or "{}"),
@@ -431,6 +448,7 @@ class SQLiteMemory:
                     id=row["id"],
                     created_at=datetime.fromisoformat(row["created_at"]),
                     updated_at=datetime.fromisoformat(row["updated_at"]),
+                    parent_id=row["parent_id"],
                     project_path=row["project_path"],
                     title=row["title"],
                     metadata=json.loads(row["metadata"] or "{}"),
@@ -438,6 +456,13 @@ class SQLiteMemory:
                 )
                 for row in rows
             ]
+
+    async def list_conversation_tree(
+        self,
+        project_path: Optional[str] = None,
+    ) -> List[Conversation]:
+        """List conversations with parent-child relationships preserved."""
+        return await self.list_conversations(project_path=project_path, limit=1000)
 
     async def update_conversation_title(
         self,

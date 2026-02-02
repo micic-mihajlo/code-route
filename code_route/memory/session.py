@@ -416,6 +416,70 @@ class SessionManager:
             limit=limit,
         )
 
+    async def branch_session(self, title: Optional[str] = None) -> str:
+        """
+        Create a new session branch from the current session.
+
+        The new branch inherits project context and current message history.
+        """
+        if not self.conversation_id:
+            raise RuntimeError("Session not started. Call start() first.")
+
+        parent = await self.memory.get_conversation(self.conversation_id)
+        if not parent:
+            raise RuntimeError(f"Current session not found: {self.conversation_id}")
+
+        branch_messages = list(self._messages_cache)
+        branch_title = title or f"Branch of {parent.id[:8]}"
+        self.conversation_id = await self.memory.create_conversation(
+            project_path=parent.project_path,
+            title=branch_title,
+            parent_id=parent.id,
+        )
+
+        # Copy current in-memory history into the new branch conversation.
+        for message in branch_messages:
+            await self.memory.save_message(self.conversation_id, message)
+
+        self._messages_cache = branch_messages
+        return self.conversation_id
+
+    async def get_session_tree(
+        self,
+        project_path: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return sessions as a parent/child tree for UI rendering."""
+        sessions = await self.memory.list_conversation_tree(project_path=project_path)
+        by_parent: Dict[Optional[str], List[ConversationInfo]] = {}
+        by_id: Dict[str, ConversationInfo] = {}
+        for session in sessions:
+            by_parent.setdefault(session.parent_id, []).append(session)
+            by_id[session.id] = session
+
+        for children in by_parent.values():
+            children.sort(key=lambda s: s.updated_at, reverse=True)
+
+        def build_node(session: ConversationInfo) -> Dict[str, Any]:
+            children = by_parent.get(session.id, [])
+            return {
+                "id": session.id,
+                "parent_id": session.parent_id,
+                "title": session.title or session.id[:8],
+                "project_path": session.project_path,
+                "message_count": session.message_count,
+                "updated_at": session.updated_at,
+                "children": [build_node(child) for child in children],
+            }
+
+        roots = []
+        for session in sessions:
+            # Root if it has no parent, or parent is missing from this project scope.
+            if not session.parent_id or session.parent_id not in by_id:
+                roots.append(session)
+
+        roots.sort(key=lambda s: s.updated_at, reverse=True)
+        return [build_node(root) for root in roots]
+
     async def switch_session(self, conversation_id: str) -> bool:
         """
         Switch to a different session.
@@ -475,6 +539,10 @@ class SessionManager:
     def message_count(self) -> int:
         """Number of messages in current session."""
         return len(self._messages_cache)
+
+    def get_messages(self) -> List[Message]:
+        """Get a copy of currently loaded session messages."""
+        return list(self._messages_cache)
 
     @property
     def is_active(self) -> bool:

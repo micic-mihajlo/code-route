@@ -13,6 +13,7 @@ Features:
 
 import asyncio
 import importlib.util
+import json
 import os
 import sys
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ from rich.prompt import Prompt
 from rich.markdown import Markdown
 from rich.align import Align
 from rich.table import Table
+from rich.tree import Tree
 
 from .streaming import StreamingRenderer, ThinkingIndicator
 from .panels import (
@@ -66,6 +68,37 @@ def _load_legacy_cli_module():
     return module
 
 
+def app_system_prompt(
+    config: "AppConfig",
+    session_manager: Optional["SessionManager"],
+) -> str:
+    """Build a stable system prompt outside the TUI runtime."""
+    base_prompt = """You are Code Route, an intelligent coding assistant.
+
+You help users with:
+- Writing and reviewing code
+- Debugging and fixing issues
+- Understanding codebases
+- Answering technical questions
+
+Be concise, accurate, and helpful. When showing code, use appropriate markdown formatting."""
+
+    if session_manager and session_manager.project_context:
+        ctx = session_manager.project_context
+        base_prompt += "\n\n## Current Project\n"
+        base_prompt += f"**Name**: {ctx.name}\n"
+        base_prompt += f"**Path**: {ctx.path}\n"
+        if ctx.branch:
+            base_prompt += f"**Git Branch**: {ctx.branch}\n"
+        if ctx.context_content:
+            content = ctx.context_content
+            if len(content) > 3000:
+                content = content[:3000] + "\n\n...(truncated)"
+            base_prompt += f"\n**Project Guidelines**:\n{content}"
+
+    return base_prompt
+
+
 @dataclass
 class AppState:
     """Application state."""
@@ -90,6 +123,8 @@ class AppConfig:
     project_path: Optional[str] = None
     enable_rag: bool = False  # Disabled by default - slow embedding loading
     enable_persistence: bool = True
+    tool_profile: str = "coding"
+    json_mode: bool = False
 
 
 class CodeRouteApp:
@@ -630,10 +665,14 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
             await self._resume_session(args)
         elif cmd == "/new":
             await self._new_session()
+        elif cmd == "/branch":
+            await self._branch_session(args)
         elif cmd == "/search":
             await self._search_history(args)
         elif cmd == "/context":
             await self._show_context()
+        elif cmd == "/tree":
+            await self._show_session_tree()
         else:
             self.console.print(f"[yellow]Unknown command: {command}[/yellow]")
             self._show_help()
@@ -754,6 +793,53 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
 
         self.console.print(f"[green]Started new session: {conv_id[:8]}...[/green]")
 
+    async def _branch_session(self, title: str) -> None:
+        """Create and switch to a child branch of the current session."""
+        if not self.session_manager:
+            self.console.print("[yellow]Session management not enabled[/yellow]")
+            return
+
+        branch_title = title.strip() if title else None
+        conv_id = await self.session_manager.branch_session(title=branch_title)
+        self.state.current_conversation_id = conv_id
+        self.conversation_panel.clear()
+        self._system_prompt = self._build_system_prompt()
+        label = branch_title or conv_id[:8]
+        self.console.print(f"[green]Created branch session: {label} ({conv_id[:8]}...)[/green]")
+
+    async def _show_session_tree(self) -> None:
+        """Show branch tree for project sessions."""
+        if not self.session_manager:
+            self.console.print("[yellow]Session management not enabled[/yellow]")
+            return
+
+        project_path = None
+        if self.session_manager.project_context:
+            project_path = self.session_manager.project_context.path
+
+        tree_data = await self.session_manager.get_session_tree(project_path=project_path)
+        if not tree_data:
+            self.console.print("[dim]No sessions found[/dim]")
+            return
+
+        root = Tree("Sessions")
+
+        def add_node(parent: Tree, node: Dict[str, Any]) -> None:
+            current = node["id"] == self.state.current_conversation_id
+            prefix = "* " if current else ""
+            label = (
+                f"{prefix}{node['title']} "
+                f"[dim]({node['id'][:8]}..., {node['message_count']} msgs)[/dim]"
+            )
+            branch = parent.add(label)
+            for child in node["children"]:
+                add_node(branch, child)
+
+        for node in tree_data:
+            add_node(root, node)
+
+        self.console.print(root)
+
     async def _search_history(self, query: str) -> None:
         """Search past conversations using RAG."""
         if not self.session_manager:
@@ -812,6 +898,8 @@ Be concise, accurate, and helpful. When showing code, use appropriate markdown f
   /sessions   - List available sessions
   /resume <id> - Resume a previous session
   /new        - Start a new session
+  /branch [name] - Create a child session branch
+  /tree       - Show branched session tree
   /history    - Show conversation history
 
   [cyan]Search & Context:[/cyan]
@@ -851,10 +939,28 @@ async def run_app(
         config: App configuration
         enable_persistence: Enable session persistence and RAG
     """
+    from ..coding_agent import CodingAgent, make_json_event_sink
     from ..core.events import EventBus
+    from ..core.types import Message, MessageRole
+    from ..providers import get_provider
+    from ..tools import get_tools_for_profile
 
     event_bus = EventBus()
     config = config or AppConfig()
+
+    if provider is None:
+        try:
+            provider = get_provider(
+                provider_name=config.provider or None,
+                model=config.model or None,
+            )
+        except Exception as exc:
+            Console().print(f"[red]No provider available: {exc}[/red]")
+            return
+
+    config.provider = config.provider or provider.name
+    if not config.model:
+        config.model = getattr(provider, "_model", "")
 
     # Initialize session manager for persistence
     session_manager = None
@@ -870,6 +976,112 @@ async def run_app(
             # Fall back to no persistence if it fails
             Console().print(f"[yellow]Warning: Session persistence disabled: {e}[/yellow]")
 
+    # Load tools from profile
+    try:
+        tool_instances = get_tools_for_profile(config.tool_profile)
+        Console().print(
+            f"[dim]Tool profile '{config.tool_profile}': "
+            f"{len(tool_instances)} tools loaded[/dim]"
+        )
+    except Exception as exc:
+        Console().print(f"[yellow]Falling back to full tool set: {exc}[/yellow]")
+        tool_instances = get_tools_for_profile("full")
+
+    # Keep short-term history when persistence is disabled/unavailable.
+    transient_history: List[Message] = []
+
+    def _preview_text(value: Any, max_chars: int = 160) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            text = value
+        else:
+            try:
+                text = json.dumps(value, ensure_ascii=True, default=str)
+            except Exception:
+                text = str(value)
+        if len(text) > max_chars:
+            return text[: max_chars - 3] + "..."
+        return text
+
+    if config.json_mode:
+        sink = make_json_event_sink()
+        agent = CodingAgent(provider, tool_instances, event_sink=sink)
+
+        # Ensure session is ready for persistence in JSON mode as well.
+        if session_manager and not session_manager.is_active:
+            await session_manager.start(project_path=config.project_path or os.getcwd())
+
+        sink(
+            {
+                "type": "session.started",
+                "timestamp": datetime.now().timestamp(),
+                "payload": {
+                    "model": config.model,
+                    "provider": config.provider,
+                    "tool_profile": config.tool_profile,
+                },
+            }
+        )
+
+        while True:
+            try:
+                user_input = input().strip()
+            except EOFError:
+                break
+
+            if not user_input:
+                continue
+            if user_input in {"/quit", "/exit", "/q"}:
+                break
+
+            sink(
+                {
+                    "type": "user.message",
+                    "timestamp": datetime.now().timestamp(),
+                    "payload": {"content": user_input},
+                }
+            )
+
+            if session_manager and session_manager.is_active:
+                await session_manager.add_user_message(user_input)
+                messages = [
+                    Message(role=MessageRole.SYSTEM, content=app_system_prompt(config, session_manager)),
+                    *session_manager.get_messages(),
+                ]
+            else:
+                transient_history.append(Message(role=MessageRole.USER, content=user_input))
+                messages = [
+                    Message(role=MessageRole.SYSTEM, content=app_system_prompt(config, None)),
+                    *transient_history,
+                ]
+
+            result = await agent.run(messages)
+            if session_manager and session_manager.is_active:
+                await session_manager.add_assistant_message(result.content)
+            else:
+                transient_history.append(
+                    Message(role=MessageRole.ASSISTANT, content=result.content)
+                )
+
+            sink(
+                {
+                    "type": "assistant.message",
+                    "timestamp": datetime.now().timestamp(),
+                    "payload": {
+                        "content": result.content,
+                        "usage": {
+                            "prompt_tokens": result.usage.prompt_tokens,
+                            "completion_tokens": result.usage.completion_tokens,
+                            "total_tokens": result.usage.total_tokens,
+                        },
+                        "iterations": result.iterations,
+                        "tool_calls": result.tool_calls,
+                    },
+                }
+            )
+        return
+
     app = CodeRouteApp(
         config=config,
         provider=provider,
@@ -877,137 +1089,86 @@ async def run_app(
         session_manager=session_manager,
     )
 
-    if provider:
-        from ..core.types import Message, MessageRole, ToolSchema, ToolCall
-        from typing import AsyncIterator
-        import json
+    tool_call_labels: Dict[str, str] = {}
 
-        # Load available tools
-        tools = {}
-        try:
-            from ..tools.bashtool import BashTool
-            from ..tools.filecontentreadertool import FileContentReaderTool
-            from ..tools.lstool import LSTool
-            from ..tools.globtool import GlobTool
-            from ..tools.greptool import GrepTool
-            from ..tools.filecreatortool import FileCreatorTool
-            from ..tools.fileedittool import FileEditTool
+    async def ui_event_sink(event: Dict[str, Any]) -> None:
+        event_type = event.get("type")
+        payload = event.get("payload", {})
 
-            tool_instances = [
-                BashTool(),
-                FileContentReaderTool(),
-                LSTool(),
-                GlobTool(),
-                GrepTool(),
-                FileCreatorTool(),
-                FileEditTool(),
-            ]
-            tools = {t.name: t for t in tool_instances}
-            Console().print(f"[dim]Loaded {len(tools)} tools: {', '.join(tools.keys())}[/dim]\n")
-        except Exception as e:
-            Console().print(f"[yellow]Warning: Could not load tools: {e}[/yellow]")
+        if event_type == "assistant.iteration.started":
+            app.status_bar.set_status("Thinking...")
+            return
 
-        # Build tool schemas for LLM
-        tool_schemas = [
-            ToolSchema(
-                name=t.name,
-                description=t.description,
-                parameters=t.input_schema
+        if event_type == "tool.call.started":
+            tool_name = str(payload.get("name", "tool"))
+            tool_id = str(payload.get("id") or f"{tool_name}-{len(tool_call_labels) + 1}")
+            label = f"{tool_name}#{tool_id[:6]}"
+            tool_call_labels[tool_id] = label
+            app.tool_list.add(
+                ToolExecution(
+                    name=label,
+                    status=ToolStatus.RUNNING,
+                    input_summary=_preview_text(payload.get("arguments")),
+                    started_at=datetime.now(),
+                )
             )
-            for t in tools.values()
-        ] if tools else None
+            app.status_bar.set_status(f"Running: {tool_name}")
+            return
 
-        async def build_messages(user_input: str) -> list:
-            """Build context messages."""
-            if session_manager and session_manager.is_active:
-                return await session_manager.build_context(
-                    current_query=user_input,
-                    system_prompt=app._system_prompt,
-                )
-            else:
-                return [
-                    Message(role=MessageRole.SYSTEM, content=app._system_prompt),
-                    Message(role=MessageRole.USER, content=user_input),
-                ]
+        if event_type == "tool.call.completed":
+            tool_name = str(payload.get("name", "tool"))
+            tool_id = str(payload.get("id") or "")
+            label = tool_call_labels.get(
+                tool_id,
+                f"{tool_name}#{tool_id[:6]}" if tool_id else tool_name,
+            )
+            app.tool_list.update(
+                label,
+                status=ToolStatus.SUCCESS if payload.get("success") else ToolStatus.ERROR,
+                output_summary=_preview_text(payload.get("output_preview")),
+                error=_preview_text(payload.get("error"), max_chars=240) if payload.get("error") else None,
+                completed_at=datetime.now(),
+                duration_ms=payload.get("elapsed_ms"),
+            )
+            app.status_bar.set_status("Ready")
+            return
 
-        async def execute_tool(name: str, arguments: dict) -> str:
-            """Execute a tool and return result."""
-            if name not in tools:
-                return f"Error: Unknown tool '{name}'"
-            try:
-                tool = tools[name]
-                # Handle both sync and async execute
-                result = tool.execute(**arguments)
-                if hasattr(result, '__await__'):
-                    result = await result
-                return str(result) if result else "Tool executed successfully"
-            except Exception as e:
-                return f"Error executing {name}: {e}"
+        if event_type == "assistant.completed":
+            app.status_bar.set_status("Ready")
+            return
 
-        # Agentic handler - executes tools in a loop
-        async def handle_message(user_input: str) -> str:
-            """Agentic response with tool execution."""
-            messages = await build_messages(user_input)
-            max_iterations = 10
-            iteration = 0
-            final_response = ""
+        if event_type == "assistant.failed":
+            app.status_bar.set_status("Max iterations reached")
 
-            while iteration < max_iterations:
-                iteration += 1
+    agent = CodingAgent(provider, tool_instances, event_sink=ui_event_sink)
 
-                # Get LLM response with tools
-                response = await provider.complete(
-                    messages,
-                    tools=tool_schemas,
-                    max_tokens=4096,
-                )
+    async def handle_message(user_input: str) -> str:
+        """Single-agent coding handler."""
+        if session_manager and session_manager.is_active:
+            # User message is already persisted by the app loop before handler invocation.
+            messages = [
+                Message(role=MessageRole.SYSTEM, content=app._system_prompt),
+                *session_manager.get_messages(),
+            ]
+        else:
+            transient_history.append(Message(role=MessageRole.USER, content=user_input))
+            messages = [
+                Message(role=MessageRole.SYSTEM, content=app._system_prompt),
+                *transient_history,
+            ]
 
-                # Update token panel
-                if response.usage:
-                    app.token_panel.add(
-                        input_tokens=response.usage.prompt_tokens,
-                        output_tokens=response.usage.completion_tokens,
-                    )
+        result = await agent.run(messages)
+        if not (session_manager and session_manager.is_active):
+            transient_history.append(
+                Message(role=MessageRole.ASSISTANT, content=result.content)
+            )
+        app.token_panel.add(
+            input_tokens=result.usage.prompt_tokens,
+            output_tokens=result.usage.completion_tokens,
+        )
+        return result.content
 
-                # Check for tool calls
-                if response.tool_calls:
-                    # Show what the assistant said
-                    if response.content:
-                        Console().print(f"[cyan]{response.content}[/cyan]")
-
-                    # Add assistant message with ALL tool calls first
-                    messages.append(Message(
-                        role=MessageRole.ASSISTANT,
-                        content=response.content or "",
-                        tool_calls=response.tool_calls,
-                    ))
-
-                    # Execute each tool call and add results
-                    for tc in response.tool_calls:
-                        Console().print(f"\n[yellow]▶ Executing {tc.name}...[/yellow]")
-                        result = await execute_tool(tc.name, tc.arguments)
-                        # Truncate long results for display
-                        display_result = result[:500] + "..." if len(result) > 500 else result
-                        Console().print(f"[dim]{display_result}[/dim]")
-
-                        # Add tool result
-                        messages.append(Message(
-                            role=MessageRole.TOOL,
-                            content=result,
-                            tool_call_id=tc.id,
-                            name=tc.name,
-                        ))
-
-                    continue  # Loop for more tool calls
-
-                # No tool calls - final response
-                final_response = response.content
-                break
-
-            return final_response
-
-        # Register handler
-        app.on_message(handle_message)
+    app.on_message(handle_message)
 
     await app.run()
 
@@ -1028,6 +1189,17 @@ def main():
     parser.add_argument("--no-banner", action="store_true", help="Skip banner")
     parser.add_argument("--provider", "-p", type=str, help="LLM provider (anthropic, openai, cerebras, openrouter, local)")
     parser.add_argument("--model", "-m", type=str, help="Model to use (e.g., zai-glm-4.7, claude-sonnet-4)")
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default="coding",
+        help="Tool profile (coding, minimal, full)",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON events (one per line) for automation",
+    )
 
     args = parser.parse_args()
 
@@ -1061,13 +1233,20 @@ def main():
 
     # New-style startup
     provider = None
+    app_config = AppConfig(
+        model=args.model or "",
+        provider=args.provider or "",
+        tool_profile=args.profile,
+        json_mode=args.json,
+    )
+
     if args.provider or args.model:
         from ..providers import get_provider
 
         provider = get_provider(args.provider, args.model)
         Console().print(f"[cyan]Using {provider.name}: {provider._model}[/cyan]\n")
 
-    asyncio.run(run_app(provider=provider))
+    asyncio.run(run_app(provider=provider, config=app_config))
 
 
 if __name__ == "__main__":
