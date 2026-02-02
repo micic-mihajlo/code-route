@@ -4,6 +4,7 @@ import asyncio
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import pytest
 
 load_dotenv()
 
@@ -249,6 +250,8 @@ async def test_embeddings():
     """Test local embeddings."""
     print("\nTesting embeddings...")
 
+    pytest.importorskip("sentence_transformers")
+
     from code_route.memory.embeddings import LocalEmbeddings, TextChunker
 
     # Test chunker first (no model needed)
@@ -298,6 +301,19 @@ async def test_simple_completion(provider):
         print(f"    - Tokens used: {response.usage.total_tokens}")
     except Exception as e:
         print(f"  [FAIL] Completion failed: {e}")
+
+
+@pytest.fixture
+async def provider():
+    """Shared provider fixture for completion tests."""
+    provider_instance = await test_provider_creation()
+    if not provider_instance:
+        pytest.skip("No provider configured")
+
+    try:
+        yield provider_instance
+    finally:
+        await provider_instance.close()
 
 
 def test_cli_components():

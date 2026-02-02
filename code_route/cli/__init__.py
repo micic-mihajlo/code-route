@@ -16,6 +16,14 @@ from .panels import (
 from .keybindings import KeyBindings, InputHandler
 from .app import CodeRouteApp, run_app
 
+
+def main() -> None:
+    """Package entrypoint used by console scripts."""
+    from .app import main as app_main
+
+    app_main()
+
+
 __all__ = [
     # Streaming
     "StreamingRenderer",
@@ -32,4 +40,5 @@ __all__ = [
     # App
     "CodeRouteApp",
     "run_app",
+    "main",
 ]

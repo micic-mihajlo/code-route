@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "code-route"
 version = "0.1.0"
 description = "A self-improving AI assistant framework with dynamic tool creation and orchestration"
-readme = "README.md"
+readme = "readme.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Mihajlo Micic", email = "mihajlo@example.com" }]
@@ -60,6 +60,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-asyncio",
     "pytest-cov",
     "black",
     "ruff",
@@ -120,8 +121,9 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --cov=cr --cov-report=term-missing"
-testpaths = ["tests"]
+addopts = "-ra -q --cov=code_route --cov-report=term-missing"
+asyncio_mode = "auto"
+testpaths = ["tests", "."]
 
 [tool.uv.workspace]
 members = ["testfolder"]

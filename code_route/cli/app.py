@@ -12,6 +12,7 @@ Features:
 """
 
 import asyncio
+import importlib.util
 import os
 import sys
 from dataclasses import dataclass, field
@@ -48,6 +49,21 @@ if TYPE_CHECKING:
     from ..core.events import EventBus, Event
     from ..providers.base import BaseProvider
     from ..memory.session import SessionManager
+
+
+def _load_legacy_cli_module():
+    """Load the legacy `code_route/cli.py` module despite package name collision."""
+    legacy_path = Path(__file__).resolve().parents[1] / "cli.py"
+    if not legacy_path.exists():
+        return None
+
+    spec = importlib.util.spec_from_file_location("code_route._legacy_cli", legacy_path)
+    if spec is None or spec.loader is None:
+        return None
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @dataclass
@@ -1015,55 +1031,43 @@ def main():
 
     args = parser.parse_args()
 
-    # Import old CLI for backwards compat
+    legacy_cli = None
     try:
-        from ..cli import (
-            init_project,
-            show_tools,
-            show_status,
-            show_banner,
-            launch_web,
-            check_config,
-        )
+        legacy_cli = _load_legacy_cli_module()
+    except Exception:
+        legacy_cli = None
 
+    if legacy_cli:
         if args.init:
-            init_project()
+            legacy_cli.init_project()
             return
 
         if args.status:
-            show_status()
+            legacy_cli.show_status()
             return
 
         if not args.no_banner:
-            show_banner()
+            legacy_cli.show_banner()
 
         if args.tools:
-            if check_config():
-                show_tools()
+            if legacy_cli.check_config():
+                legacy_cli.show_tools()
             return
 
         if args.web:
-            if check_config():
-                launch_web()
+            if legacy_cli.check_config():
+                legacy_cli.launch_web()
             return
 
-        # Create provider if specified
-        provider = None
-        if args.provider or args.model:
-            from ..providers import get_provider
-            provider = get_provider(args.provider, args.model)
-            Console().print(f"[cyan]Using {provider.name}: {provider._model}[/cyan]\n")
+    # New-style startup
+    provider = None
+    if args.provider or args.model:
+        from ..providers import get_provider
 
-        # Run new async app
-        asyncio.run(run_app(provider=provider))
+        provider = get_provider(args.provider, args.model)
+        Console().print(f"[cyan]Using {provider.name}: {provider._model}[/cyan]\n")
 
-    except ImportError:
-        # New-style startup - also handle provider args
-        provider = None
-        if hasattr(args, 'provider') and (args.provider or args.model):
-            from ..providers import get_provider
-            provider = get_provider(args.provider, args.model)
-        asyncio.run(run_app(provider=provider))
+    asyncio.run(run_app(provider=provider))
 
 
 if __name__ == "__main__":

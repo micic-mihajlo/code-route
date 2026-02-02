@@ -122,7 +122,7 @@ class PlannerAgent(BaseAgent):
                 ]
 
                 response = await self.provider.complete(
-                    messages=[Message(role=MessageRole(m["role"]), content=m["content"]) for m in messages],
+                    messages=self._to_provider_messages(messages),
                     tools=tool_schemas,
                 )
 

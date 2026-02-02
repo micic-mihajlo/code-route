@@ -1,5 +1,6 @@
 """Base agent class and types for the multi-agent system."""
 
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -173,6 +174,71 @@ class BaseAgent(ABC):
         messages.append({"role": "user", "content": task_content})
 
         return messages
+
+    def _to_provider_messages(self, messages: List[Dict[str, Any]]) -> List["Message"]:
+        """
+        Convert internal dict message history to strongly typed Message objects.
+
+        Preserves tool-call metadata so multi-step tool loops remain valid.
+        """
+        from ..core.types import Message, MessageRole, ToolCall
+
+        converted: List[Message] = []
+
+        for msg in messages:
+            role = MessageRole(msg["role"])
+            content = msg.get("content", "")
+            if content is None:
+                content = ""
+
+            parsed_tool_calls: Optional[List[ToolCall]] = None
+            raw_tool_calls = msg.get("tool_calls")
+            if raw_tool_calls:
+                parsed_tool_calls = []
+                for raw_tc in raw_tool_calls:
+                    if isinstance(raw_tc, ToolCall):
+                        parsed_tool_calls.append(raw_tc)
+                        continue
+
+                    if not isinstance(raw_tc, dict):
+                        continue
+
+                    # Accept both {"name","arguments"} and OpenAI-style {"function": {...}}.
+                    if "function" in raw_tc and isinstance(raw_tc["function"], dict):
+                        name = raw_tc["function"].get("name")
+                        arguments = raw_tc["function"].get("arguments", {})
+                    else:
+                        name = raw_tc.get("name")
+                        arguments = raw_tc.get("arguments", {})
+
+                    if isinstance(arguments, str):
+                        try:
+                            arguments = json.loads(arguments)
+                        except json.JSONDecodeError:
+                            arguments = {}
+
+                    if not isinstance(arguments, dict) or not name:
+                        continue
+
+                    parsed_tool_calls.append(
+                        ToolCall(
+                            id=raw_tc.get("id", ""),
+                            name=name,
+                            arguments=arguments,
+                        )
+                    )
+
+            converted.append(
+                Message(
+                    role=role,
+                    content=content,
+                    tool_calls=parsed_tool_calls or None,
+                    tool_call_id=msg.get("tool_call_id"),
+                    name=msg.get("name"),
+                )
+            )
+
+        return converted
 
     def _format_context(self, context: Dict[str, Any]) -> str:
         """Format context dict for inclusion in prompt."""

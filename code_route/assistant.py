@@ -7,7 +7,10 @@ import pkgutil
 import sys
 from typing import Any, Dict, List, Optional
 
-from openai import OpenAI
+try:
+    from openai import OpenAI
+except Exception:  # pragma: no cover - handled at runtime for env compatibility
+    OpenAI = None  # type: ignore[assignment]
 from prompt_toolkit import prompt
 from prompt_toolkit.styles import Style
 from prompt_toolkit.completion import Completer, Completion
@@ -111,6 +114,9 @@ class Assistant:
             raise ValueError(f"Unknown model '{model_name}'") from err
 
     def _create_client_for_model(self, model_name: str) -> OpenAI:
+        if OpenAI is None:
+            raise ImportError("openai>=1.0.0 is required to run the assistant.")
+
         settings = self._get_model_settings(model_name)
         provider = settings.get("provider")
         base_url = settings.get("base_url")

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Dict, List, Optional
 
-from ..core.types import CompletionResponse, Message, ToolSchema, Usage
+from ..core.types import CompletionResponse, Message, MessageRole, ToolSchema, Usage
 
 
 @dataclass
@@ -121,7 +121,7 @@ class BaseProvider(ABC):
         try:
             # Simple completion test
             response = await self.complete(
-                messages=[Message(role="user", content="Hi")],
+                messages=[Message(role=MessageRole.USER, content="Hi")],
                 max_tokens=5,
             )
             return bool(response.content)

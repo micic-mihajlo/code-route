@@ -155,7 +155,7 @@ class OrchestratorAgent(DelegatingAgent):
                 tool_schemas.append(delegate_tool)
 
                 response = await self.provider.complete(
-                    messages=[Message(role=MessageRole(m["role"]), content=m["content"]) for m in messages],
+                    messages=self._to_provider_messages(messages),
                     tools=tool_schemas,
                 )
 
@@ -228,7 +228,7 @@ class OrchestratorAgent(DelegatingAgent):
         parent_task: AgentTask
     ) -> List[str]:
         """Process tool calls, handling both regular tools and delegation."""
-        results = []
+        results_by_id: Dict[str, str] = {}
 
         # Group independent tool calls for parallel execution
         delegation_calls = []
@@ -246,14 +246,16 @@ class OrchestratorAgent(DelegatingAgent):
                 self._execute_tool(tc)
                 for tc in regular_calls
             ])
-            results.extend(regular_results)
+            for tc, result in zip(regular_calls, regular_results):
+                results_by_id[tc.id] = result
 
         # Execute delegations (could be parallel too, but sequential is safer)
         for tc in delegation_calls:
             result = await self._handle_delegation(tc, parent_task)
-            results.append(result)
+            results_by_id[tc.id] = result
 
-        return results
+        # Return in the exact original tool-call order.
+        return [results_by_id.get(tc.id, "Error: Missing tool result") for tc in tool_calls]
 
     async def _execute_tool(self, tool_call: ToolCall) -> str:
         """Execute a single tool call."""
