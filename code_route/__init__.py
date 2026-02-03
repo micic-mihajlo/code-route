@@ -9,7 +9,15 @@ __version__ = "0.1.0"
 __author__ = "Mihajlo Micic"
 __email__ = "mihajlo@example.com"
 
-from .assistant import Assistant
 from .config import Config
 
 __all__ = ["Assistant", "Config"]
+
+
+def __getattr__(name: str):
+    """Lazy-load heavy imports so light package imports keep working."""
+    if name == "Assistant":
+        from .assistant import Assistant
+
+        return Assistant
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
